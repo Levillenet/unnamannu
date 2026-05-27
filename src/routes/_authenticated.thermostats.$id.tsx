@@ -73,18 +73,28 @@ function ThermostatPage() {
 
   return (
     <div className="p-8">
-      <Link
-        to="/apartments/$id"
-        params={{ id: t.apartment_id }}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="h-4 w-4" /> Takaisin huoneeseen
-      </Link>
+      {t.apartment_id ? (
+        <Link
+          to="/apartments/$id"
+          params={{ id: t.apartment_id }}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" /> Takaisin huoneeseen
+        </Link>
+      ) : (
+        <Link
+          to="/devices"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" /> Takaisin laitteisiin
+        </Link>
+      )}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.room ?? t.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Huone {(t.apartments as any)?.number} · {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
+            {t.apartment_id ? `Huoneisto ${(t.apartments as any)?.number} · ` : "Allokoimaton · "}
+            {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
           </p>
         </div>
         {t.status === "online" ? (
