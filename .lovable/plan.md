@@ -1,48 +1,56 @@
-## Ongelmat
+## Tavoite
 
-### 1. "Lukitse kaikki termostaatit" -nappi palautuu eikä lukitse Ebecoa
+Saada `childLock` toimimaan termostaatille 94922 saman tavoin kuin Ebecon omassa sovelluksessa. Koska virallinen `UpdateUserDevice` ei näytä hyväksyvän kenttää, oletamme että Ebecon sovellus käyttää joko eri endpointia tai eri payload-muotoa. Selvitetään se järjestelmällisesti ja kytketään löydetty tapa tuotantokoodiin.
 
-`ZoneCard`-komponentissa `lock`-tila alustetaan kovakoodattuna `useState(false)` – ei ikinä lue todellista tilaa vyöhykkeen termostaateista, joten kytkin palautuu jokaisella renderöinnillä.
+## Vaihe 1 — Diagnostiikkaserveri-funktio (`src/lib/ebeco-diagnose.functions.ts`)
 
-Lisäksi `saveZoneDefault`-server fn päivittää vain `thermostats.locked`-saraketta DB:ssä, mutta **ei kutsu Ebecoa** ollenkaan – `childLock`-kenttä jää termostaatilla pois päältä.
+Uusi suojattu serverFn `diagnoseEbecoChildLock({ id, enable })`, jota voi ajaa Asetukset-sivulta napilla. Funktio:
 
-### 2. Yksittäiset Ebeco-asetukset (näyttö, kieli, lapsilukko…) eivät mene laitteelle
+1. Hakee tuoreen tokenin ja nykyisen DTO:n (`fetchDeviceById`).
+2. Lokittaa kaikki kentät joiden nimessä on `lock`, `pin`, `child` tai `keylock` — näemme palauttaako `GetUserDevices` ko. kenttiä ylipäätään.
+3. Yrittää sarjassa useita kandidaatteja ja kirjaa jokaisesta `status` + `response.body` (max 400 merkkiä):
+   - `PUT /services/app/Devices/UpdateUserDevice` koko DTO + `childLock: enable`
+   - `PUT /services/app/Devices/UpdateUserDevice` koko DTO + `keyLock: enable` (vaihtoehtoinen nimi)
+   - `POST /services/app/Devices/SetChildLock` `{ id, value: enable }`
+   - `POST /services/app/Devices/SetDeviceChildLock` `{ id, childLock: enable }`
+   - `POST /services/app/Devices/UpdateDeviceSettings` `{ id, childLock: enable }`
+   - `PUT /services/app/Devices/UpdateUserDeviceSettings` koko DTO + `childLock: enable`
+   - `POST /services/app/UserDevices/SetChildLock` `{ id, value: enable }`
+4. Jokaisen kutsun jälkeen pieni `GET GetUserDevices` ja vertaa palasiko `childLock`/`keyLock` muuttuneena → tämä on lopullinen totuus.
+5. Palauttaa UI:lle taulukon `{ path, method, status, bodyPreview, childLockAfter }`.
 
-Lokeista paljastui jo aiemmin että `GetUserDevice?Id=…` palauttaa 400. Korjasin sen käyttämään koko listaa (`GetUserDevices`), mutta DB:ssä `thermostats.ebeco_settings` on edelleen NULL kaikilla laitteilla → eli **emme tiedä mitä kenttiä lista oikeasti palauttaa**. Todennäköisesti `GetUserDevices` palauttaa vain perustiedot (id, name, lämpötila, online), ei laajempia asetuksia kuten `displayWhenIdle`, `childLock`, `language`. Silloin merge-PUT joko hylätään hiljaisesti tai Ebeco ei käsittele kenttiä joita se ei "tunne" listan kontekstissa.
+Tämä on read-mostly diagnostiikkaa: tunnistamme oikean polun yhdellä ajolla ilman arvauksia.
 
-Lisäksi vain yhdellä termostaatilla (`94922`) on numeerinen Ebeco-ID. Muut ovat tekstiplaceholder-arvoja (`EBT500-…`), joten ne eivät koskaan tavoita Ebecoa – tämä on test-dataa eikä korjattavaa, mutta auttaa selittämään miksi "broadcast" näyttäisi useammin epäonnistuvan.
+## Vaihe 2 — Diagnostiikkanäkymä Asetukset-sivulle
 
-## Suunnitelma
+`src/routes/_authenticated.settings.tsx`: pieni "Ebeco-diagnostiikka" -kortti (admin-only) jossa:
+- input thermostat ID:lle (oletus 94922)
+- napit "Yritä lukita" ja "Yritä avata"
+- tulostaulukko vastaukista
 
-### A. Lukitus-nappi toimimaan oikein (sovellus + Ebeco)
+Tulokset näkyvät myös serverilokeissa joista voin lukea ne.
 
-**`src/lib/data.functions.ts` – `saveZoneDefault`:**
-- Kun `lockAll === true/false`, hae vyöhykkeen termostaattien ID:t, ja kutsu reusable `pushPatchToTargets(supabase, ids, { childLock: lockAll })`. DB:n `locked`-sarakkeen päivitys tapahtuu jo nyt; lisätään päälle Ebeco-push. `pushPatchToTargets` huolehtii automaattisesti snapshotin tuoreutuksesta.
-- Palauta UI:lle myös push-tulokset (`pushed`, `failed`).
+## Vaihe 3 — Kytketään löytynyt polku tuotantoon
 
-**`src/routes/_authenticated.zones.tsx` – `ZoneCard`:**
-- Lisätään prop `currentLocked: boolean` joka tulee parentilta (lasketaan: kaikki vyöhykkeen termostaatit `locked=true`).
-- `useState(currentLocked)` + `useEffect`-synkki kun prop muuttuu.
-- Onnistuneen tallennuksen jälkeen kutsutaan `qc.invalidateQueries`, jolloin uusi tila virtaa oikein takaisin.
+Kun Vaihe 1 paljastaa toimivan endpointin:
 
-### B. Selvitetään miksi Ebeco-asetukset eivät tartu
+- `src/lib/ebeco.server.ts`: lisätään `setChildLock(id, value)` -funktio joka käyttää oikeaa polkua/payloadia. Cachetetaan toimiva tapa moduuliskooppiin samaan tyyliin kuin `workingSinglePath`.
+- `src/lib/data.functions.ts`: 
+  - `saveZoneDefault` (lukitse-koko-vyöhyke) → kutsuu `setChildLock` jokaiselle numeerisen ID:n omaavalle termostaatille.
+  - `updateThermostatSettings` ja `broadcast`-polut → kun patchissa on `childLock`, käytetään `setChildLock` `updateDevice`-kutsun sijaan/lisäksi.
+- Demolaitteet (ei-numeerinen ID) pysyvät visuaalisina kuten nyt.
 
-**`src/lib/ebeco.server.ts` – `updateDevice`:**
-- Lisätään tarkka diagnostiikka onnistumistilanteessakin: kirjataan `console.log` jossa `id`, `base`-avaimet (ennen PUTia), ja Ebecon vastausrunko (`response.json()` jos ei tyhjä). Näin lokeista nähdään tarkalleen mitä lähetetään ja mitä Ebeco vastaa.
-- Yritetään kahta vaihtoehtoista single-device endpointia ennen lista-fallbackia (helper `fetchDeviceById`):
-  1. `GET /services/app/Devices/Get?Id={id}`
-  2. `GET /services/app/Devices/GetUserDeviceById?Id={id}`
-  
-  Ensimmäinen joka palauttaa `{ result: { id, displayWhenIdle, … } }` valitaan – cachetetaan onnistunut polku moduuliskoopissa jotta seuraavat kutsut menevät suoraan.
-- Jos kumpikaan ei toimi, pysytään lista-fallbackissa (nykyinen toiminta) ja ainakin diagnostiikan kautta nähdään mitä lista palauttaa.
+## Vaihe 4 — UI-palaute
 
-### C. Mitä EI tehdä
+- `ZoneCard` ja yksittäinen lapsilukko-switch näyttävät toast-virheen jos Ebeco palauttaa ei-200:n; onnistumisen jälkeen invalidoidaan `devices`/`thermostat`-queryt jotta tuore tila virtaa UI:hin.
+- Poistetaan nykyiset "ei mene laitteelle" -varoitukset lapsilukosta, koska se alkaa toimia oikeasti.
 
-- Ei kosketa `syncEbecoDevices`-liittymäpintaan (toimii muuten ok).
-- Ei muuteta UI:n asetus-meta-dataa.
-- Ei poisteta test-data-rivejä `thermostats`-taulusta – käyttäjän asia.
+## Mitä EI tehdä
+
+- Ei kosketa muihin Ebeco-asetuksiin (näyttö, kieli yms.) tässä iteraatiossa — keskitytään lapsilukkoon.
+- Ei muuteta `syncEbecoDevices`-logiikkaa.
+- Ei tehdä mitään mainnetia kunnes Vaihe 1 vahvistaa toimivan endpointin lokeista.
 
 ## Lopputulos
 
-- Lukitus-kytkin näyttää oikean tilan ja painalkin tekee saman muutoksen sekä DB:hen että Ebecoon, jolloin lapsilukko aktivoituu myös termostaatissa.
-- Lokeista näemme heti yhden tallennuksen jälkeen miksi Ebeco-asetukset eivät tartu (puuttuvat kentät vs. virheellinen polku), ja päästään korjaamaan se täsmällisesti seuraavalla iteraatiolla.
+Yksi diagnostiikka-ajo riittää löytämään Ebecon todellisen lapsilukko-rajapinnan. Sen jälkeen kytkennät vyöhykkeen lukitsemiseen ja yksittäiseen termostaattiin toimivat oikein myös fyysisellä laitteella, eikä käyttäjälle enää valehdella "tallennettiin" jos Ebeco hylkäsi pyynnön.
