@@ -8,6 +8,8 @@ async function requireAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Vain admin voi tehdä tämän muutoksen");
 }
 
+const MAX_EXCEEDANCE_EVENTS = ["guest_max_exceeded", "guest_max_enforced", "max_hold_expired"];
+
 export const getBuildingOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -30,9 +32,7 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       tempReadings.length > 0
         ? tempReadings.reduce((s, r) => s + Number(r.room_temp), 0) / tempReadings.length
         : null;
-    const enforcedCount = (readings24h ?? []).filter(
-      (r) => r.event === "guest_max_enforced" || r.event === "max_hold_expired",
-    ).length;
+    const enforcedCount = (readings24h ?? []).filter((r) => MAX_EXCEEDANCE_EVENTS.includes(r.event ?? "")).length;
 
     const ts = thermostats ?? [];
     const avgSp = ts.length
@@ -51,6 +51,68 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       enforcedCount,
       avgSetpoint: avgSp,
     };
+  });
+
+export const getMaxExceedances24h = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { data: readings, error: readingsError } = await supabase
+      .from("thermostat_readings")
+      .select("thermostat_id,ts,setpoint,event")
+      .gte("ts", since)
+      .in("event", MAX_EXCEEDANCE_EVENTS)
+      .order("ts", { ascending: false });
+    if (readingsError) throw new Error(readingsError.message);
+
+    const thermostatIds = [...new Set((readings ?? []).map((r) => r.thermostat_id).filter((id): id is string => Boolean(id)))];
+    if (thermostatIds.length === 0) return { total: 0, rows: [] };
+
+    const { data: thermostats, error: thermostatError } = await supabase
+      .from("thermostats")
+      .select("id,name,room,guest_max_setpoint,apartment_id")
+      .in("id", thermostatIds);
+    if (thermostatError) throw new Error(thermostatError.message);
+
+    const apartmentIds = [...new Set((thermostats ?? []).map((t) => t.apartment_id).filter((id): id is string => Boolean(id)))];
+    const { data: apartments, error: apartmentError } = apartmentIds.length
+      ? await supabase.from("apartments").select("id,number,floor").in("id", apartmentIds)
+      : { data: [], error: null };
+    if (apartmentError) throw new Error(apartmentError.message);
+
+    const thermostatById = new Map((thermostats ?? []).map((t) => [t.id, t]));
+    const apartmentById = new Map((apartments ?? []).map((a) => [a.id, a]));
+    const byApartment = new Map<string, any>();
+
+    for (const r of readings ?? []) {
+      const t = thermostatById.get(r.thermostat_id);
+      const a = t?.apartment_id ? apartmentById.get(t.apartment_id) : null;
+      const key = a?.id ?? "unallocated";
+      if (!byApartment.has(key)) {
+        byApartment.set(key, {
+          apartment_id: a?.id ?? null,
+          apartment_number: a?.number ?? "Allokoimaton",
+          floor: a?.floor ?? null,
+          count: 0,
+          latest_at: r.ts,
+          thermostats: [],
+        });
+      }
+      const row = byApartment.get(key);
+      row.count += 1;
+      if (new Date(r.ts).getTime() > new Date(row.latest_at).getTime()) row.latest_at = r.ts;
+      row.thermostats.push({
+        id: t?.id ?? r.thermostat_id,
+        name: t?.room ?? t?.name ?? "Termostaatti",
+        setpoint: r.setpoint,
+        guest_max_setpoint: t?.guest_max_setpoint ?? null,
+        event: r.event,
+        ts: r.ts,
+      });
+    }
+
+    return { total: readings?.length ?? 0, rows: [...byApartment.values()].sort((a, b) => b.count - a.count) };
   });
 
 export const listApartments = createServerFn({ method: "GET" })
