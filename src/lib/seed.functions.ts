@@ -24,7 +24,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
 
   const { data: building, error: be } = await supabaseAdmin
     .from("buildings")
-    .insert({ name: "Hotel Mäntytie", address: "Mäntytie 12, 00100 Helsinki" })
+    .insert({ name: "Unna&Mannu", address: "Levi" })
     .select()
     .single();
   if (be) throw new Error(be.message);
