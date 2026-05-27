@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Flame } from "lucide-react";
+import logo from "@/assets/levi-suites-logo.png";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
