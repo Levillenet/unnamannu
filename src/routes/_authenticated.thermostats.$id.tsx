@@ -18,7 +18,12 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const qo = (id: string) =>
-  queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
+  queryOptions({
+    queryKey: ["thermostat", id],
+    queryFn: () => getThermostat({ data: { id } }),
+    refetchInterval: 60_000,
+  });
+
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
 const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
 const zonesQO = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
