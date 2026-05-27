@@ -129,6 +129,9 @@ function UnallocatedRow({
 
 function DevicesPage() {
   const { data } = useSuspenseQuery(qo);
+  const { data: zonesData } = useSuspenseQuery(zonesQo);
+  const zoneOptions: ZoneOption[] = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
+  const zoneLabelOf = (z: string) => zoneOptions.find((o) => o.zone === z)?.label ?? z;
   const qc = useQueryClient();
 
   const sync = useServerFn(syncEbecoDevices);
