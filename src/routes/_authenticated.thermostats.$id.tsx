@@ -45,6 +45,7 @@ function ThermostatPage() {
       qc.invalidateQueries({ queryKey: ["thermostat", id] });
       qc.invalidateQueries({ queryKey: ["apartments"] });
       qc.invalidateQueries({ queryKey: ["overview"] });
+      qc.invalidateQueries({ queryKey: ["devices"] });
       toast.success("Tallennettu");
     },
     onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
@@ -52,8 +53,10 @@ function ThermostatPage() {
 
   const [setpoint, setSetpoint] = useState(Number(t.current_setpoint));
   const [guestMax, setGuestMax] = useState(Number(t.guest_max_setpoint));
+  const [name, setName] = useState<string>(t.name);
   useEffect(() => setSetpoint(Number(t.current_setpoint)), [t.current_setpoint]);
   useEffect(() => setGuestMax(Number(t.guest_max_setpoint)), [t.guest_max_setpoint]);
+  useEffect(() => setName(t.name), [t.name]);
 
   const enforcements = data.readings.filter((r: any) => r.event === "guest_max_enforced");
   const lastEnforced = enforcements.length > 0 ? enforcements[enforcements.length - 1] : null;
