@@ -222,7 +222,7 @@ function ApartmentsPage() {
                     </TableRow>
                     {isOpen && (
                       <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <div className="px-6 py-4">
                             {ts.length === 0 ? (
                               <p className="text-sm text-muted-foreground">Ei termostaatteja</p>
