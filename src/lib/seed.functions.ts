@@ -89,16 +89,20 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     .select();
   if (ae) throw new Error(ae.message);
 
-  // Thermostats: every room has Makuuhuone, Olohuone, Eteinen, Kylpyhuone + occasional WC
+  // Thermostats: one per bedroom + Olohuone, Eteinen, Kylpyhuone (+ extra bath for big units)
   const thermostatRows: any[] = [];
   for (const apt of apartments!) {
-    const layout = [
-      ROOM_ZONES[0], // Makuuhuone
-      ROOM_ZONES[1], // Olohuone
-      ROOM_ZONES[2], // Eteinen
-      ROOM_ZONES[3], // Kylpyhuone
-      ...(Math.random() < 0.35 ? [ROOM_ZONES[4]] : []), // WC
-    ];
+    const bedrooms = Number((apt as any).bedrooms ?? 1);
+    const sizeM2 = Number((apt as any).size_m2 ?? 0);
+    const layout: { room: string; zone: "room" | "bathroom" }[] = [];
+    for (let b = 0; b < Math.max(1, bedrooms); b++) {
+      layout.push({ room: bedrooms > 1 ? `Makuuhuone ${b + 1}` : "Makuuhuone", zone: "room" });
+    }
+    layout.push({ room: "Olohuone", zone: "room" });
+    layout.push({ room: "Eteinen", zone: "room" });
+    layout.push({ room: "Kylpyhuone", zone: "bathroom" });
+    if (sizeM2 >= 100) layout.push({ room: "Kylpyhuone 2", zone: "bathroom" });
+    if (Math.random() < 0.35) layout.push({ room: "WC", zone: "bathroom" });
     for (let i = 0; i < layout.length; i++) {
       const rz = layout[i];
       const offline = Math.random() < 0.04;
