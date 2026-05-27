@@ -545,7 +545,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           ...ebecoCols,
         };
         if (setpoint != null) patch.current_setpoint = setpoint;
-        const { error } = await supabase.from("thermostats").update(patch).eq("id", existingId);
+        const { error } = await (supabase.from("thermostats") as any).update(patch).eq("id", existingId);
         if (error) throw new Error(error.message);
         updated += 1;
 
