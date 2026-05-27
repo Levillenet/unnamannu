@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink } from "lucide-react";
 import { useState, Fragment } from "react";
 import { toast } from "sonner";
 import { useIsAdmin } from "@/hooks/use-current-role";
