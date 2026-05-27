@@ -741,27 +741,64 @@ async function pushPatchToTargets(
   const withEbeco = (rows ?? []).filter((r: any) => r.ebeco_device_id);
   const results = await Promise.allSettled(
     withEbeco.map((r: any) =>
-      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(() => r.id as string),
+      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(
+        () => ({ localId: r.id as string, ebecoId: Number(r.ebeco_device_id) }),
+      ),
     ),
   );
 
-  const succeededIds: string[] = [];
+  const succeeded: { localId: string; ebecoId: number }[] = [];
   const errors: string[] = [];
   for (const r of results) {
-    if (r.status === "fulfilled") succeededIds.push(r.value);
+    if (r.status === "fulfilled") succeeded.push(r.value);
     else errors.push(String((r.reason as Error)?.message ?? r.reason));
   }
 
-  // Mirror successful changes into local columns + ebeco_settings JSONB.
-  const colPatch = ebecoPatchToColumns(patch);
-  if (succeededIds.length > 0 && Object.keys(colPatch).length > 0) {
-    const { error: upErr } = await (supabase.from("thermostats") as any)
-      .update(colPatch)
-      .in("id", succeededIds);
-    if (upErr) errors.push(upErr.message);
+  // Hae onnistuneille laitteille tuore tila Ebecosta yhdellä listakutsulla
+  // ja tallenna täysi snapshot + kaikki mapatut sarakkeet paikallisesti.
+  // Näin Tallenna/Jaa ei vaadi erillistä "Synkronoi Ebecosta" -painalkkaa.
+  if (succeeded.length > 0) {
+    try {
+      const fresh = await fetchDevices();
+      const byEbecoId = new Map(fresh.map((d) => [d.id, d]));
+      const nowIso = new Date().toISOString();
+
+      await Promise.all(
+        succeeded.map(async ({ localId, ebecoId }) => {
+          const detail = byEbecoId.get(ebecoId);
+          if (!detail) return;
+          const cols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
+          const status: "online" | "offline" = detail.online === false ? "offline" : "online";
+          const setpoint =
+            typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
+          const rowPatch: Record<string, unknown> = {
+            last_seen_at: nowIso,
+            status,
+            ebeco_settings: detail as unknown as Record<string, unknown>,
+            ...cols,
+          };
+          if (setpoint != null) rowPatch.current_setpoint = setpoint;
+          const { error: upErr } = await (supabase.from("thermostats") as any)
+            .update(rowPatch)
+            .eq("id", localId);
+          if (upErr) errors.push(upErr.message);
+        }),
+      );
+    } catch (err) {
+      // Jos Ebecon lista ei tule, fallback: kirjoita ainakin pyydetty patch
+      // paikallisiin sarakkeisiin, jotta UI ei jää epäsynkkaan.
+      console.warn("[pushPatchToTargets] tuoreen tilan haku epäonnistui:", (err as Error).message);
+      const colPatch = ebecoPatchToColumns(patch);
+      if (Object.keys(colPatch).length > 0) {
+        const { error: upErr } = await (supabase.from("thermostats") as any)
+          .update(colPatch)
+          .in("id", succeeded.map((s) => s.localId));
+        if (upErr) errors.push(upErr.message);
+      }
+    }
   }
 
-  return { succeeded: succeededIds.length, failed: errors.length, errors };
+  return { succeeded: succeeded.length, failed: results.length - succeeded.length, errors };
 }
 
 export const updateThermostatSettings = createServerFn({ method: "POST" })
