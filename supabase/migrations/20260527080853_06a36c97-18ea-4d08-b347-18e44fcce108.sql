@@ -1,0 +1,1 @@
+ALTER TABLE public.apartments ADD COLUMN IF NOT EXISTS notes text;

@@ -59,10 +59,58 @@ export const listApartments = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: apartments, error } = await supabase
       .from("apartments")
-      .select("*, thermostats(id,status,current_setpoint,zone,last_seen_at)")
+      .select("*, thermostats(id,name,room,status,current_setpoint,guest_max_setpoint,zone,locked,last_seen_at)")
       .order("number");
     if (error) throw new Error(error.message);
     return apartments ?? [];
+  });
+
+export const updateApartment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      notes: z.string().max(5000).nullable().optional(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { id, ...patch } = data;
+    const { error } = await supabase.from("apartments").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "apartment.update", entity_type: "apartment", entity_id: id, details: patch,
+    });
+    return { ok: true };
+  });
+
+export const applyZoneToThermostats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      zone: z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/),
+      guest_max_setpoint: z.number().min(5).max(35),
+      default_setpoint: z.number().min(5).max(35),
+      applyDefaultSetpoint: z.boolean().optional(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    await requireAdmin(supabase, userId);
+    const patch: { guest_max_setpoint: number; current_setpoint?: number } = {
+      guest_max_setpoint: data.guest_max_setpoint,
+    };
+    if (data.applyDefaultSetpoint) patch.current_setpoint = data.default_setpoint;
+    const { error, count } = await supabase
+      .from("thermostats")
+      .update(patch, { count: "exact" })
+      .eq("zone", data.zone);
+    if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "zone.apply_to_thermostats", entity_type: "zone", entity_id: data.zone,
+      details: { ...patch, affected: count ?? 0 },
+    });
+    return { affected: count ?? 0 };
   });
 
 export const getApartment = createServerFn({ method: "GET" })
