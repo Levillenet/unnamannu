@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import {
   fetchDevicesDetailed,
+  fetchDeviceById,
   updateDevice,
   pickRoomTemp,
   pickFloorTemp,
