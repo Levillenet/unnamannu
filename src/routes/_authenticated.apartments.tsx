@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listApartments, updateThermostat, createApartment } from "@/lib/data.functions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,8 +19,14 @@ const qo = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartment
 
 export const Route = createFileRoute("/_authenticated/apartments")({
   loader: ({ context }) => context.queryClient.ensureQueryData(qo),
-  component: ApartmentsPage,
+  component: ApartmentsRoute,
 });
+
+function ApartmentsRoute() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname !== "/apartments") return <Outlet />;
+  return <ApartmentsPage />;
+}
 
 function AddApartmentDialog() {
   const qc = useQueryClient();
@@ -157,8 +163,9 @@ function ApartmentsPage() {
             <TableBody>
               {apts.map((a: any) => {
                 const ts = (a.thermostats ?? []) as any[];
-                const avg = ts.length
-                  ? (ts.reduce((s, t) => s + Number(t.current_setpoint), 0) / ts.length).toFixed(1)
+                const setpoints = ts.map((t) => Number(t.current_setpoint)).filter(Number.isFinite);
+                const avg = setpoints.length
+                  ? (setpoints.reduce((s, v) => s + v, 0) / setpoints.length).toFixed(1)
                   : "—";
                 const rooms = ts.filter((t) => t.zone === "room").length;
                 const baths = ts.filter((t) => t.zone === "bathroom").length;
@@ -187,14 +194,11 @@ function ApartmentsPage() {
                         )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Link
-                          to="/apartments/$id"
-                          params={{ id: a.id }}
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                          title="Avaa huonekortti"
-                        >
-                          Avaa <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        <Button asChild size="sm" variant="ghost" title="Avaa huonekortti">
+                          <Link to="/apartments/$id" params={{ id: a.id }}>
+                            Avaa <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                     {isOpen && (
