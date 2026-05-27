@@ -235,7 +235,7 @@ function ThermostatPage() {
             <div className="rounded-md border border-border bg-muted/30 p-3">
               <div className="flex items-baseline justify-between">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Huonelämpötila nyt
+                  Mitattu huone
                 </Label>
                 <span className="text-3xl font-semibold text-primary">
                   {roomTempRaw != null ? `${Number(roomTempRaw).toFixed(1)} °C` : "—"}
@@ -244,8 +244,8 @@ function ThermostatPage() {
               <div className="mt-1 flex items-baseline justify-between text-xs text-muted-foreground">
                 <span>
                   {floorTempRaw != null
-                    ? `Lattia ${Number(floorTempRaw).toFixed(1)} °C`
-                    : "Lattia —"}
+                    ? `Mitattu lattia ${Number(floorTempRaw).toFixed(1)} °C`
+                    : "Mitattu lattia —"}
                 </span>
                 <span>päivitetty {lastSeenLabel}</span>
               </div>
