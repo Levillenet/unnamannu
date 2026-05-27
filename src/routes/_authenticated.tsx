@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers } from "lucide-react";
+import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
