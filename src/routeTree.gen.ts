@@ -16,6 +16,7 @@ import { Route as AuthenticatedZonesRouteImport } from './routes/_authenticated.
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
 import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
+import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authenticated.apartments'
 import { Route as AuthenticatedThermostatsIdRouteImport } from './routes/_authenticated.thermostats.$id'
@@ -55,6 +56,11 @@ const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
   path: '/energy',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/devices': typeof AuthenticatedDevicesRoute
   '/energy': typeof AuthenticatedEnergyRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/devices': typeof AuthenticatedDevicesRoute
   '/energy': typeof AuthenticatedEnergyRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/devices': typeof AuthenticatedDevicesRoute
   '/_authenticated/energy': typeof AuthenticatedEnergyRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/apartments'
     | '/dashboard'
+    | '/devices'
     | '/energy'
     | '/schedules'
     | '/settings'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/apartments'
     | '/dashboard'
+    | '/devices'
     | '/energy'
     | '/schedules'
     | '/settings'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/apartments'
     | '/_authenticated/dashboard'
+    | '/_authenticated/devices'
     | '/_authenticated/energy'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
@@ -213,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEnergyRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/devices': {
+      id: '/_authenticated/devices'
+      path: '/devices'
+      fullPath: '/devices'
+      preLoaderRoute: typeof AuthenticatedDevicesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -261,6 +280,7 @@ const AuthenticatedApartmentsRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedApartmentsRoute: typeof AuthenticatedApartmentsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDevicesRoute: typeof AuthenticatedDevicesRoute
   AuthenticatedEnergyRoute: typeof AuthenticatedEnergyRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -271,6 +291,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApartmentsRoute: AuthenticatedApartmentsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDevicesRoute: AuthenticatedDevicesRoute,
   AuthenticatedEnergyRoute: AuthenticatedEnergyRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
