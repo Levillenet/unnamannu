@@ -121,6 +121,53 @@ function ThermostatPage() {
       teho: Number(r.power_w),
     }));
 
+  // Huonelämpötila: Ebecon viimeisin snapshot ensisijaisesti, tai uusin reading.
+  const ebSettings = (t.ebeco_settings ?? {}) as Record<string, unknown>;
+  const roomTempRaw =
+    (typeof ebSettings.temperatureRoomDecimals === "number"
+      ? ebSettings.temperatureRoomDecimals
+      : typeof ebSettings.temperatureRoom === "number"
+        ? ebSettings.temperatureRoom
+        : null) ??
+    (() => {
+      const lastTemp = [...data.readings].reverse().find((r: any) => r.room_temp != null);
+      return lastTemp ? Number((lastTemp as any).room_temp) : null;
+    })();
+  const floorTempRaw =
+    typeof ebSettings.temperatureFloorDecimals === "number"
+      ? ebSettings.temperatureFloorDecimals
+      : typeof ebSettings.temperatureFloor === "number"
+        ? ebSettings.temperatureFloor
+        : null;
+
+  const lastSeenAt = t.last_seen_at ? new Date(t.last_seen_at as string) : null;
+  const lastSeenLabel = lastSeenAt ? formatRelative(lastSeenAt) : "ei dataa";
+
+  // Override-laskuri: kun setpoint > guest_max, näytä paljonko aikaa rajaan
+  const zoneCfg = (zonesData.defaults as any[]).find((z) => z.zone === t.zone);
+  const graceMin = Number(zoneCfg?.override_grace_minutes ?? 0);
+  const overrideStarted = t.override_started_at ? new Date(t.override_started_at as string) : null;
+  const overOverGuestMax = Number(t.current_setpoint) > Number(t.guest_max_setpoint);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!overOverGuestMax) return;
+    const h = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(h);
+  }, [overOverGuestMax]);
+  void tick;
+  let returnLabel: string | null = null;
+  if (overOverGuestMax) {
+    if (graceMin <= 0) {
+      returnLabel = "seuraavalla tarkistuksella (≤ 60 s)";
+    } else {
+      const startMs = overrideStarted ? overrideStarted.getTime() : Date.now();
+      const remainingMs = startMs + graceMin * 60_000 - Date.now();
+      if (remainingMs <= 0) returnLabel = "seuraavalla tarkistuksella (≤ 60 s)";
+      else returnLabel = `noin ${Math.ceil(remainingMs / 60_000)} min kuluttua`;
+    }
+  }
+
+
   return (
     <div className="p-8">
       {t.apartment_id ? (
