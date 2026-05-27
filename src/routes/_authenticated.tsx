@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio, Menu, X } from "lucide-react";
+import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio, Menu, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
@@ -36,6 +36,11 @@ function AuthenticatedLayout() {
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/login" });
+  };
+
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
+    else navigate({ to: "/dashboard" });
   };
 
   const currentLabel = NAV.find((n) => pathname === n.to || pathname.startsWith(n.to + "/"))?.label ?? "Unna&Mannu";
@@ -110,6 +115,11 @@ function AuthenticatedLayout() {
         </div>
       </aside>
       <main className="flex-1 overflow-auto pt-14 md:pt-0 min-w-0">
+        <div className="px-4 pt-3 md:px-8 md:pt-4">
+          <Button variant="ghost" size="sm" onClick={goBack} className="gap-1 text-muted-foreground hover:text-foreground" aria-label="Palaa edelliselle sivulle">
+            <ArrowLeft className="h-4 w-4" /> Takaisin
+          </Button>
+        </div>
         <Outlet />
       </main>
     </div>
