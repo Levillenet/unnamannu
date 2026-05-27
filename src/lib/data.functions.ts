@@ -395,3 +395,32 @@ export const unallocateThermostat = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+export const createApartment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      number: z.string().min(1).max(20),
+      floor: z.string().min(1).max(10),
+      apartment_type: z.string().max(200).optional().nullable(),
+      bedrooms: z.number().int().min(0).max(20).optional().nullable(),
+      size_m2: z.number().min(0).max(10000).optional().nullable(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    await requireAdmin(supabase, userId);
+    const { data: bs } = await supabase.from("buildings").select("id").order("created_at").limit(1);
+    const building_id = bs?.[0]?.id;
+    if (!building_id) throw new Error("Rakennusta ei ole vielä luotu");
+    const { data: created, error } = await supabase
+      .from("apartments")
+      .insert({ ...data, building_id })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "apartment.create", entity_type: "apartment", entity_id: created.id, details: data,
+    });
+    return created;
+  });
