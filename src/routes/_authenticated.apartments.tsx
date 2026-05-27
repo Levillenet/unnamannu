@@ -172,7 +172,7 @@ function ApartmentsPage() {
                         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
                       <TableCell className="font-medium">{a.number}</TableCell>
-                      <TableCell>{a.floor}. krs</TableCell>
+                      <TableCell>krs {a.floor}</TableCell>
                       <TableCell>{ts.length}</TableCell>
                       <TableCell className="text-muted-foreground">{rooms} · {baths}</TableCell>
                       <TableCell>{avg} °C</TableCell>
