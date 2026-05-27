@@ -534,10 +534,15 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
       const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
       const existingId = existingByEbecoId.get(ebecoId);
 
+      // Build column patch from any Ebeco fields present on the device.
+      const ebecoCols = ebecoPatchToColumns(d as unknown as EbecoPatch);
+
       if (existingId) {
-        const patch: { last_seen_at: string; status: "online" | "offline"; current_setpoint?: number } = {
+        const patch: Record<string, unknown> = {
           last_seen_at: nowIso,
           status,
+          ebeco_settings: d as unknown as Record<string, unknown>,
+          ...ebecoCols,
         };
         if (setpoint != null) patch.current_setpoint = setpoint;
         const { error } = await supabase.from("thermostats").update(patch).eq("id", existingId);
@@ -562,6 +567,8 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
             status,
             current_setpoint: setpoint ?? 21,
             last_seen_at: nowIso,
+            ebeco_settings: d as unknown as Record<string, unknown>,
+            ...ebecoCols,
           })
           .select("id")
           .single();
@@ -576,6 +583,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           floor_temp: pickFloorTemp(d),
         });
       }
+
     }
 
     const validReadings = readingsToInsert.filter((r) => !!r.thermostat_id);
