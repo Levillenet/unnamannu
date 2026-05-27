@@ -205,6 +205,7 @@ export type Database = {
           id: string
           last_seen_at: string | null
           locked: boolean
+          max_hold_started_at: string | null
           max_setpoint: number
           min_setpoint: number
           name: string
@@ -225,6 +226,7 @@ export type Database = {
           id?: string
           last_seen_at?: string | null
           locked?: boolean
+          max_hold_started_at?: string | null
           max_setpoint?: number
           min_setpoint?: number
           name: string
@@ -245,6 +247,7 @@ export type Database = {
           id?: string
           last_seen_at?: string | null
           locked?: boolean
+          max_hold_started_at?: string | null
           max_setpoint?: number
           min_setpoint?: number
           name?: string
@@ -296,9 +299,11 @@ export type Database = {
         Row: {
           building_id: string
           created_at: string
+          default_setpoint: number
           guest_max_setpoint: number
           id: string
           label: string
+          max_hold_minutes: number
           override_grace_minutes: number
           updated_at: string
           zone: string
@@ -306,9 +311,11 @@ export type Database = {
         Insert: {
           building_id: string
           created_at?: string
+          default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
           label: string
+          max_hold_minutes?: number
           override_grace_minutes?: number
           updated_at?: string
           zone: string
@@ -316,9 +323,11 @@ export type Database = {
         Update: {
           building_id?: string
           created_at?: string
+          default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
           label?: string
+          max_hold_minutes?: number
           override_grace_minutes?: number
           updated_at?: string
           zone?: string
