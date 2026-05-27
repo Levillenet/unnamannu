@@ -34,9 +34,9 @@ function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="flex w-60 flex-col border-r border-border bg-sidebar">
-        <div className="flex items-center gap-2 px-5 py-5 text-sidebar-primary">
-          <Flame className="h-5 w-5" />
-          <span className="text-base font-semibold tracking-tight">Ebeco-hallinta</span>
+        <div className="flex flex-col gap-1 px-4 py-5">
+          <img src={logo} alt="Unna&Mannu" className="h-8 w-auto object-contain self-start" />
+          <span className="px-1 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/60">Unna&amp;Mannu</span>
         </div>
         <nav className="flex-1 space-y-0.5 px-2">
           {NAV.map((item) => {
