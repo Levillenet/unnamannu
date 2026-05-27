@@ -442,13 +442,15 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("zone_defaults").select("*").order("label"),
-      supabase.from("thermostats").select("id,zone"),
+      supabase.from("thermostats").select("id,zone,locked"),
     ]);
     const counts: Record<string, number> = {};
+    const lockedCounts: Record<string, number> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
+      if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
     }
-    return { building, defaults: defaults ?? [], counts };
+    return { building, defaults: defaults ?? [], counts, lockedCounts };
   });
 
 export const saveZoneDefault = createServerFn({ method: "POST" })
@@ -481,17 +483,33 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
         .update({ guest_max_setpoint: row.guest_max_setpoint }).eq("zone", row.zone);
       if (e2) throw new Error(e2.message);
     }
+    let lockPushed = 0;
+    let lockFailed = 0;
     if (typeof lockAll === "boolean") {
       const { error: e3 } = await supabase.from("thermostats")
         .update({ locked: lockAll }).eq("zone", row.zone);
       if (e3) throw new Error(e3.message);
+
+      // Pakota muutos myös Ebecon childLock-kenttään.
+      const { data: zoneRows } = await supabase
+        .from("thermostats")
+        .select("id")
+        .eq("zone", row.zone);
+      const ids = (zoneRows ?? []).map((r: any) => r.id as string);
+      if (ids.length > 0) {
+        const pushRes = await pushPatchToTargets(supabase, ids, { childLock: lockAll });
+        lockPushed = pushRes.succeeded;
+        lockFailed = pushRes.failed;
+      }
     }
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: existing ? "zone.update" : "zone.create",
-      entity_type: "zone", entity_id: row.zone, details: { ...row, applyToAll, lockAll },
+      entity_type: "zone", entity_id: row.zone,
+      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed },
     });
-    return { ok: true };
+    return { ok: true, lockPushed, lockFailed };
   });
+
 
 export const deleteZoneDefault = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
