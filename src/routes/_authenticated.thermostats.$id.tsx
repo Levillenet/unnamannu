@@ -370,11 +370,18 @@ function ThermostatPage() {
 
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
+                  Jos kentät ovat tyhjiä, hae tuoreet arvot Ebecosta alla olevasta napista.
+                </p>
+              </div>
+              <SyncDeviceButton id={t.id} />
+            </div>
           </CardHeader>
+
           <CardContent>
             <ThermostatSettingsTabs
               thermostat={t}
