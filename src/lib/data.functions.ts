@@ -311,13 +311,19 @@ export const updateThermostat = createServerFn({ method: "POST" })
       patch.enabled != null ||
       patch.guest_max_setpoint != null;
 
-    if (needsEbeco) {
+    // Hae nykytila jos tarvitsemme guest_maxin override-laskentaan tai Ebeco-kutsuun.
+    let currentRow: { ebeco_device_id: string | null; guest_max_setpoint: number } | null = null;
+    if (needsEbeco || patch.current_setpoint != null) {
       const { data: t } = await supabase
         .from("thermostats")
-        .select("ebeco_device_id")
+        .select("ebeco_device_id,guest_max_setpoint")
         .eq("id", id)
         .maybeSingle();
-      const ebecoId = t?.ebeco_device_id ? Number(t.ebeco_device_id) : null;
+      currentRow = t ?? null;
+    }
+
+    if (needsEbeco && currentRow) {
+      const ebecoId = currentRow.ebeco_device_id ? Number(currentRow.ebeco_device_id) : null;
       if (ebecoId && !Number.isNaN(ebecoId)) {
         await updateDevice({
           id: ebecoId,
@@ -334,8 +340,27 @@ export const updateThermostat = createServerFn({ method: "POST" })
       }
     }
 
+    // Override-ajastimen aloitus: jos uusi setpoint ylittää guest_maxin, aloita
+    // viive heti jotta polleri laskee oikein. Jos taas asetus pudotetaan rajaan
+    // tai alle, nollataan timerit.
+    if (patch.current_setpoint != null && currentRow) {
+      const effectiveGuestMax =
+        patch.guest_max_setpoint != null
+          ? Number(patch.guest_max_setpoint)
+          : Number(currentRow.guest_max_setpoint);
+      if (patch.current_setpoint > effectiveGuestMax) {
+        (patch as Record<string, unknown>).override_started_at = new Date().toISOString();
+      } else {
+        (patch as Record<string, unknown>).override_started_at = null;
+        if (patch.current_setpoint < effectiveGuestMax) {
+          (patch as Record<string, unknown>).max_hold_started_at = null;
+        }
+      }
+    }
+
     const { error } = await supabase.from("thermostats").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
+
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: "thermostat.update", entity_type: "thermostat", entity_id: id, details: patch,
     });
