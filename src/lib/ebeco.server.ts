@@ -175,6 +175,40 @@ export async function fetchDevices(): Promise<EbecoDevice[]> {
   return json.result ?? [];
 }
 
+// Fetch a single device with full settings. The ABP-style endpoint is
+// GET /api/services/app/Devices/GetUserDevice?Id={id}. Falls back gracefully
+// if the endpoint shape differs.
+export async function fetchDeviceById(id: number): Promise<EbecoDevice | null> {
+  try {
+    const json = await request<{ result?: EbecoDevice }>(
+      `/services/app/Devices/GetUserDevice?Id=${id}`,
+      { method: "GET" },
+    );
+    return json.result ?? null;
+  } catch (err) {
+    console.warn(`[ebeco.fetchDeviceById] ${id} failed:`, (err as Error).message);
+    return null;
+  }
+}
+
+export async function fetchDevicesDetailed(): Promise<EbecoDevice[]> {
+  const list = await fetchDevices();
+  // Fetch full settings per device in small concurrent batches.
+  const out: EbecoDevice[] = [];
+  const BATCH = 5;
+  for (let i = 0; i < list.length; i += BATCH) {
+    const slice = list.slice(i, i + BATCH);
+    const results = await Promise.all(
+      slice.map(async (d) => {
+        const detail = await fetchDeviceById(d.id);
+        return detail ? { ...d, ...detail } : d;
+      }),
+    );
+    out.push(...results);
+  }
+  return out;
+}
+
 export async function updateDevice(input: { id: number } & EbecoPatch): Promise<void> {
   // Forward only allowed fields.
   const body: Record<string, unknown> = { id: input.id };
