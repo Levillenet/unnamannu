@@ -1,61 +1,49 @@
 ## Tavoite
 
-Tehdään ohjauksesta itsenäinen: `pg_cron` kutsuu joka minuutti julkista reittiä, joka ajaa saman enforcement-logiikan kuin selainpolleri. Käyttäjien ei tarvitse pitää sovellusta auki.
+Tuoda termostaatin anturin mittaama **huonelämpö** (ja kylpyhuoneissa myös **lattialämpö**) näkyviin niihin näkymiin, joissa se nyt puuttuu, sekä selkeyttää termostaatin detaljinäkymän mittarit otsikoilla "Mitattu".
 
-## Muutokset
+## Mitä lisätään / muutetaan
 
-### 1. Uusi julkinen reitti `src/routes/api/public/enforce-limits.ts`
+### 1. `src/lib/data.functions.ts` — `listApartments`
 
-- `POST /api/public/enforce-limits` (myös `GET` salliva manuaalitestiin).
-- Vahvistus: vertaa `x-cron-secret`-headeria `process.env.CRON_SECRET`-arvoon `timingSafeEqual`illa. Jos puuttuu/virheellinen → 401.
-- Käyttää `supabaseAdmin`-clientiä (`@/integrations/supabase/client.server`) RLS:n ohi.
-- Hakee `thermostats` + `zone_defaults` samoilla kentillä kuin nykyinen server fn.
-- Kutsuu `runEnforcementForRows(supabaseAdmin, rows, zones)` (uudelleenkäyttö `enforcement.server.ts`:stä, ei koodimuutosta sinne).
-- Palauttaa `{ ok: true, actions, count }`.
-- Logittaa `console.info("[cron/enforce] actions=…")` jälkikäteistä debugointia varten.
+Lisätään `ebeco_settings` termostaatti-selectiin, jotta lista saa käyttöönsä Ebecon viimeisimmän anturilukeman ilman ylimääräistä kyselyä:
 
-### 2. Salaisuus
-
-- `add_secret CRON_SECRET` — käyttäjä antaa satunnaisen merkkijonon (esim. 32 tavua hex).
-
-### 3. pg_cron -ajastus
-
-Erillinen insert (ei migraatio, koska sisältää salaisuuden ja URL:n):
-
-```sql
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
-
-select cron.schedule(
-  'enforce-thermostat-limits',
-  '* * * * *',
-  $$
-  select net.http_post(
-    url := 'https://project--f9410954-fa6f-4161-babd-ac3c51162c1d.lovable.app/api/public/enforce-limits',
-    headers := jsonb_build_object(
-      'Content-Type','application/json',
-      'x-cron-secret','<CRON_SECRET-arvo>'
-    ),
-    body := '{}'::jsonb
-  );
-  $$
-);
+```text
+.select("*, thermostats(id,name,room,status,current_setpoint,
+         guest_max_setpoint,zone,locked,last_seen_at,ebeco_settings)")
 ```
 
-URL on stabiili `project--<id>.lovable.app` jotta uudelleennimet eivät riko.
+`getApartment` käyttää jo `thermostats(*)` → ei muutosta.
 
-### 4. Selainpolleri jää paikalleen
+### 2. `src/routes/_authenticated.apartments.tsx` — listan laajennettu rivi
 
-Nopea palaute UI:lle kun joku katsoo, mutta ei enää välttämätön. Ei muutoksia `_authenticated.tsx`:ään.
+Termostaattirivi näyttää nyt vain "Asiakas-max … °C". Lisätään näytetyn nimen viereen pieni mitattu lämpö:
+
+- Otetaan `temperatureRoomDecimals` (tai `temperatureRoom`) `ebeco_settings`-jsonista
+- Lukema näkyy muodossa `21.3 °C` termostaattirivin oikeassa reunassa Setpoint-stepperin vasemmalla puolella, sekundääritekstinä
+- Yläpuolella olevaan apartment-tasoriviin lisätään uusi sarake **"Mitattu ka."** (keskiarvo termostaattien room-lukemista)
+
+### 3. `src/routes/_authenticated.apartments.$id.tsx` — `ThermostatCard`
+
+Kortille (`CardContent`) lisätään asetuksen alle pieni rivi:
+
+```text
+Mitattu  21.3 °C huone · 24.1 °C lattia
+```
+
+- Huonelämpö aina kun saatavilla
+- Lattialämpö vain jos `ebeco_settings.temperatureFloor(Decimals)` ≠ null (kylpyhuonetermostaateissa)
+- Jos arvoa ei ole, näytetään "—"
+
+### 4. `src/routes/_authenticated.thermostats.$id.tsx` — selkeytys
+
+Vain labelimuutoksia, ei dataa:
+- "Huonelämpötila nyt" → **"Mitattu huone"**
+- "Lattia …" → **"Mitattu lattia …"**
+- Kaavion selitteet `Huone` ja `Lattia` → **`Mitattu huone`** ja **`Mitattu lattia`** (Asetus pysyy)
 
 ## Tekninen huomio
 
-`runEnforcementForRows` toimii suoraan `supabaseAdmin`illa (sama `from/update/insert`-rajapinta). Ebeco-kutsut menevät `updateDevice`-helperin kautta, joka käyttää `EBECO_EMAIL`/`EBECO_PASSWORD`-secrettejä — toimii server routessa identtisesti.
+Mittausarvot luetaan ensisijaisesti `ebeco_settings`-jsonista (kentät `temperatureRoomDecimals`, `temperatureFloorDecimals`, fallback ei-decimal-versioon). Tämä on sama logiikka kuin termostaatin detaljisivulla, joten arvot pysyvät synkassa. Polleri päivittää `ebeco_settings`-snapshotin joka minuutti `syncEbecoDevices`-kutsulla.
 
-## Käyttöönotto
-
-1. Käyttäjä hyväksyy → lisätään `CRON_SECRET`.
-2. Luodaan reitti.
-3. Käyttäjä ajaa SQL:n (kerran) tai pyytää ajamaan supabase insert -työkalulla kun secret on tiedossa.
-4. Testaus: `curl -X POST -H "x-cron-secret: …" https://.../api/public/enforce-limits` → nähdään actions.
-5. Seuranta: `select * from cron.job_run_details where jobid = (select jobid from cron.job where jobname='enforce-thermostat-limits') order by start_time desc limit 10;`
+Ei tietokantamuutoksia, ei uusia kyselyitä, ei taustalogiikan muutoksia.
