@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ShieldAlert } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -44,15 +44,22 @@ function ThermostatPage() {
   });
 
   const [setpoint, setSetpoint] = useState(Number(t.current_setpoint));
+  const [guestMax, setGuestMax] = useState(Number(t.guest_max_setpoint));
   useEffect(() => setSetpoint(Number(t.current_setpoint)), [t.current_setpoint]);
+  useEffect(() => setGuestMax(Number(t.guest_max_setpoint)), [t.guest_max_setpoint]);
 
-  const chartData = data.readings.map((r) => ({
-    time: new Date(r.ts as string).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit" }),
-    huone: Number(r.room_temp),
-    lattia: Number(r.floor_temp),
-    asetus: Number(r.setpoint),
-    teho: Number(r.power_w),
-  }));
+  const enforcements = data.readings.filter((r: any) => r.event === "guest_max_enforced");
+  const lastEnforced = enforcements.length > 0 ? enforcements[enforcements.length - 1] : null;
+
+  const chartData = data.readings
+    .filter((r: any) => r.event !== "guest_max_enforced")
+    .map((r) => ({
+      time: new Date(r.ts as string).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit" }),
+      huone: Number(r.room_temp),
+      lattia: Number(r.floor_temp),
+      asetus: Number(r.setpoint),
+      teho: Number(r.power_w),
+    }));
 
   return (
     <div className="p-8">
@@ -61,13 +68,13 @@ function ThermostatPage() {
         params={{ id: t.apartment_id }}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ChevronLeft className="h-4 w-4" /> Takaisin huoneistoon
+        <ChevronLeft className="h-4 w-4" /> Takaisin huoneeseen
       </Link>
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t.room ?? t.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Huoneisto {(t.apartments as any)?.number} · ID {t.ebeco_device_id}
+            Huone {(t.apartments as any)?.number} · {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
           </p>
         </div>
         {t.status === "online" ? (
@@ -78,6 +85,20 @@ function ThermostatPage() {
           <Badge variant="destructive">Hälytys</Badge>
         )}
       </div>
+
+      {lastEnforced && (
+        <Card className="mb-4 border-warning/40 bg-warning/5">
+          <CardContent className="flex items-center gap-3 pt-6">
+            <ShieldAlert className="h-5 w-5 text-warning" />
+            <div className="text-sm">
+              <div className="font-medium">Asiakkaan yläraja on palauttanut asetuksen {enforcements.length}× viim. 7 vrk</div>
+              <div className="text-xs text-muted-foreground">
+                Viimeisin: {new Date(lastEnforced.ts as string).toLocaleString("fi-FI")} → {Number(lastEnforced.setpoint).toFixed(1)} °C
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -102,6 +123,29 @@ function ThermostatPage() {
                 <span>5 °C</span>
                 <span>35 °C</span>
               </div>
+              {setpoint > guestMax && (
+                <p className="mt-2 text-xs text-warning">
+                  Arvo ylittää asiakkaan ylärajan ({guestMax.toFixed(1)} °C) – palautuu rajaan tallennettaessa.
+                </p>
+              )}
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="mb-2 flex items-baseline justify-between">
+                <Label>Asiakkaan yläraja</Label>
+                <span className="text-2xl font-semibold text-warning">{guestMax.toFixed(1)} °C</span>
+              </div>
+              <Slider
+                min={15}
+                max={30}
+                step={0.5}
+                value={[guestMax]}
+                onValueChange={(v) => setGuestMax(v[0])}
+                onValueCommit={(v) => m.mutate({ data: { id: t.id, guest_max_setpoint: v[0] } })}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Asiakas voi nostaa asetuksen enintään tähän arvoon. Ylitykset palautuvat automaattisesti.
+              </p>
             </div>
 
             <div className="flex items-center justify-between">
@@ -114,7 +158,7 @@ function ThermostatPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="locked">Lukko (estä asukkaan säätö)</Label>
+              <Label htmlFor="locked">Lukko (estä asiakkaan säätö kokonaan)</Label>
               <Switch
                 id="locked"
                 checked={t.locked}

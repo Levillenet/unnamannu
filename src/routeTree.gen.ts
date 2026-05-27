@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedZonesRouteImport } from './routes/_authenticated.zones'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
 import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedZonesRoute = AuthenticatedZonesRouteImport.update({
+  id: '/zones',
+  path: '/zones',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/energy': typeof AuthenticatedEnergyRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/zones': typeof AuthenticatedZonesRoute
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
 }
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/energy': typeof AuthenticatedEnergyRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/zones': typeof AuthenticatedZonesRoute
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
 }
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_authenticated/energy': typeof AuthenticatedEnergyRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/zones': typeof AuthenticatedZonesRoute
   '/_authenticated/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/_authenticated/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
 }
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/energy'
     | '/schedules'
     | '/settings'
+    | '/zones'
     | '/apartments/$id'
     | '/thermostats/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/energy'
     | '/schedules'
     | '/settings'
+    | '/zones'
     | '/apartments/$id'
     | '/thermostats/$id'
   id:
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/_authenticated/energy'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
+    | '/_authenticated/zones'
     | '/_authenticated/apartments/$id'
     | '/_authenticated/thermostats/$id'
   fileRoutesById: FileRoutesById
@@ -172,6 +184,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/zones': {
+      id: '/_authenticated/zones'
+      path: '/zones'
+      fullPath: '/zones'
+      preLoaderRoute: typeof AuthenticatedZonesRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -245,6 +264,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedEnergyRoute: typeof AuthenticatedEnergyRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedZonesRoute: typeof AuthenticatedZonesRoute
   AuthenticatedThermostatsIdRoute: typeof AuthenticatedThermostatsIdRoute
 }
 
@@ -254,6 +274,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedEnergyRoute: AuthenticatedEnergyRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedZonesRoute: AuthenticatedZonesRoute,
   AuthenticatedThermostatsIdRoute: AuthenticatedThermostatsIdRoute,
 }
 
@@ -269,3 +290,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

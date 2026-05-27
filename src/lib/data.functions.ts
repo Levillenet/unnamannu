@@ -9,31 +9,41 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
     const [{ data: building }, { data: apartments }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("apartments").select("id"),
-      supabase.from("thermostats").select("id,status,current_setpoint"),
+      supabase.from("thermostats").select("id,status,current_setpoint,zone"),
     ]);
 
-    // 24h energy
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const { data: readings24h } = await supabase
       .from("thermostat_readings")
-      .select("energy_kwh,room_temp")
+      .select("energy_kwh,room_temp,event")
       .gte("ts", since);
 
     const energy24h = (readings24h ?? []).reduce((s, r) => s + Number(r.energy_kwh ?? 0), 0);
+    const tempReadings = (readings24h ?? []).filter((r) => r.room_temp != null);
     const avgRoom =
-      (readings24h ?? []).length > 0
-        ? (readings24h!.reduce((s, r) => s + Number(r.room_temp ?? 0), 0)) / readings24h!.length
+      tempReadings.length > 0
+        ? tempReadings.reduce((s, r) => s + Number(r.room_temp), 0) / tempReadings.length
         : null;
+    const enforcedCount = (readings24h ?? []).filter((r) => r.event === "guest_max_enforced").length;
+
+    const ts = thermostats ?? [];
+    const roomTs = ts.filter((t) => t.zone === "room");
+    const bathTs = ts.filter((t) => t.zone === "bathroom");
+    const avgZone = (arr: typeof ts) =>
+      arr.length ? arr.reduce((s, t) => s + Number(t.current_setpoint), 0) / arr.length : null;
 
     return {
       building,
       apartmentCount: apartments?.length ?? 0,
-      thermostatCount: thermostats?.length ?? 0,
-      online: (thermostats ?? []).filter((t) => t.status === "online").length,
-      offline: (thermostats ?? []).filter((t) => t.status === "offline").length,
-      alarms: (thermostats ?? []).filter((t) => t.status === "alarm").length,
+      thermostatCount: ts.length,
+      online: ts.filter((t) => t.status === "online").length,
+      offline: ts.filter((t) => t.status === "offline").length,
+      alarms: ts.filter((t) => t.status === "alarm").length,
       energy24h,
       avgRoomTemp: avgRoom,
+      enforcedCount,
+      avgRoomZone: avgZone(roomTs),
+      avgBathZone: avgZone(bathTs),
     };
   });
 
@@ -43,7 +53,7 @@ export const listApartments = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: apartments, error } = await supabase
       .from("apartments")
-      .select("*, thermostats(id,status,current_setpoint,last_seen_at)")
+      .select("*, thermostats(id,status,current_setpoint,zone,last_seen_at)")
       .order("number");
     if (error) throw new Error(error.message);
     return apartments ?? [];
@@ -70,7 +80,7 @@ export const getThermostat = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: t, error } = await supabase
       .from("thermostats")
-      .select("*, apartments(id,number,resident_name), schedules:current_schedule_id(id,name)")
+      .select("*, apartments(id,number), schedules:current_schedule_id(id,name)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
@@ -78,7 +88,7 @@ export const getThermostat = createServerFn({ method: "GET" })
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const { data: readings } = await supabase
       .from("thermostat_readings")
-      .select("ts,room_temp,floor_temp,setpoint,power_w,energy_kwh")
+      .select("ts,room_temp,floor_temp,setpoint,power_w,energy_kwh,event")
       .eq("thermostat_id", data.id)
       .gte("ts", since)
       .order("ts");
@@ -92,6 +102,7 @@ export const updateThermostat = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       current_setpoint: z.number().min(5).max(35).optional(),
+      guest_max_setpoint: z.number().min(5).max(35).optional(),
       enabled: z.boolean().optional(),
       locked: z.boolean().optional(),
       current_schedule_id: z.string().uuid().nullable().optional(),
@@ -183,7 +194,6 @@ export const getEnergyByApartment = createServerFn({ method: "GET" })
       return { apartment: a.number, energy_kwh: Number(total.toFixed(1)) };
     });
 
-    // Daily series total
     const byDay = new Map<string, number>();
     for (const r of readings ?? []) {
       const day = (r.ts as string).slice(0, 10);
@@ -194,4 +204,52 @@ export const getEnergyByApartment = createServerFn({ method: "GET" })
       .map(([day, kwh]) => ({ day, energy_kwh: Number(kwh.toFixed(1)) }));
 
     return { byApartment: rows.sort((a, b) => b.energy_kwh - a.energy_kwh), daily };
+  });
+
+// ---------- ZONES ----------
+
+export const listZoneDefaults = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
+      supabase.from("buildings").select("*").limit(1).maybeSingle(),
+      supabase.from("zone_defaults").select("*"),
+      supabase.from("thermostats").select("id,zone,guest_max_setpoint,current_setpoint"),
+    ]);
+    const counts = {
+      room: (thermostats ?? []).filter((t) => t.zone === "room").length,
+      bathroom: (thermostats ?? []).filter((t) => t.zone === "bathroom").length,
+    };
+    return { building, defaults: defaults ?? [], counts };
+  });
+
+export const saveZoneDefault = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      building_id: z.string().uuid(),
+      zone: z.enum(["room", "bathroom"]),
+      guest_max_setpoint: z.number().min(5).max(35),
+      default_setpoint: z.number().min(5).max(35),
+      applyToAll: z.boolean().optional(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { applyToAll, ...row } = data;
+    const { error } = await supabase
+      .from("zone_defaults")
+      .upsert(row, { onConflict: "building_id,zone" });
+    if (error) throw new Error(error.message);
+
+    if (applyToAll) {
+      // Update guest_max for all thermostats of this zone
+      const { error: e2 } = await supabase
+        .from("thermostats")
+        .update({ guest_max_setpoint: row.guest_max_setpoint })
+        .eq("zone", row.zone);
+      if (e2) throw new Error(e2.message);
+    }
+    return { ok: true };
   });

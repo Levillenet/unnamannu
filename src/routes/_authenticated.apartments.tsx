@@ -18,17 +18,18 @@ function ApartmentsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Huoneistot</h1>
-        <p className="text-sm text-muted-foreground">{apts.length} huoneistoa</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Huoneet</h1>
+        <p className="text-sm text-muted-foreground">{apts.length} hotellihuonetta</p>
       </div>
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Huoneisto</TableHead>
-                <TableHead>Asukas</TableHead>
+                <TableHead>Huone</TableHead>
+                <TableHead>Kerros</TableHead>
                 <TableHead>Termostaatit</TableHead>
+                <TableHead>Huone / Kylpyhuone</TableHead>
                 <TableHead>Keskiasetus</TableHead>
                 <TableHead>Tila</TableHead>
               </TableRow>
@@ -39,6 +40,8 @@ function ApartmentsPage() {
                 const avg = ts.length
                   ? (ts.reduce((s: number, t: any) => s + Number(t.current_setpoint), 0) / ts.length).toFixed(1)
                   : "—";
+                const rooms = ts.filter((t: any) => t.zone === "room").length;
+                const baths = ts.filter((t: any) => t.zone === "bathroom").length;
                 const off = ts.filter((t: any) => t.status === "offline").length;
                 const al = ts.filter((t: any) => t.status === "alarm").length;
                 return (
@@ -48,8 +51,9 @@ function ApartmentsPage() {
                         {a.number}
                       </Link>
                     </TableCell>
-                    <TableCell>{a.resident_name ?? "—"}</TableCell>
+                    <TableCell>{a.floor}. krs</TableCell>
                     <TableCell>{ts.length}</TableCell>
+                    <TableCell className="text-muted-foreground">{rooms} · {baths}</TableCell>
                     <TableCell>{avg} °C</TableCell>
                     <TableCell>
                       {al === 0 && off === 0 ? (
