@@ -620,18 +620,23 @@ export const listDevices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const [{ data: thermostats }, { data: apartments }] = await Promise.all([
+    const [{ data: thermostats }, { data: apartments }, { data: building }] = await Promise.all([
       supabase
         .from("thermostats")
-        .select("id,name,ebeco_device_id,apartment_id,zone,status,last_seen_at,apartments(id,number)")
+        .select(
+          "id,name,ebeco_device_id,apartment_id,zone,status,last_seen_at,enabled,current_setpoint,display_when_idle,child_lock,sensor_application,selected_program,adaptive_start,open_window_detection,light_idle,light_active,language,apartments(id,number)",
+        )
         .order("ebeco_device_id"),
       supabase.from("apartments").select("id,number").order("number"),
+      supabase.from("buildings").select("id,name").limit(1).maybeSingle(),
     ]);
     return {
       thermostats: thermostats ?? [],
       apartments: apartments ?? [],
+      building: building ?? null,
     };
   });
+
 
 export const allocateThermostat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
