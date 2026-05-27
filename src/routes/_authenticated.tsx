@@ -67,14 +67,14 @@ function AuthenticatedLayout() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-sidebar transition-transform duration-200 md:static md:w-60 md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-sidebar transition-transform duration-200 md:static md:w-72 md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center gap-2 px-4 py-5">
-          <div className="flex flex-col gap-1 flex-1 min-w-0">
-            <img src={logo} alt="Unna&Mannu" className="h-8 w-auto object-contain self-start" />
-            <span className="px-1 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/60">Unna&amp;Mannu</span>
+        <div className="flex items-center gap-2 px-4 py-6">
+          <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+            <img src={logo} alt="Unna&Mannu" className="h-16 w-auto object-contain" />
+            <span className="text-xs font-medium uppercase tracking-wider text-sidebar-foreground/60">Unna&amp;Mannu</span>
           </div>
           <Button
             variant="ghost"
