@@ -446,7 +446,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
       const existingId = existingByEbecoId.get(ebecoId);
 
       if (existingId) {
-        const patch: Record<string, unknown> = {
+        const patch: { last_seen_at: string; status: "online" | "offline"; current_setpoint?: number } = {
           last_seen_at: nowIso,
           status,
         };
@@ -454,6 +454,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
         const { error } = await supabase.from("thermostats").update(patch).eq("id", existingId);
         if (error) throw new Error(error.message);
         updated += 1;
+
         readingsToInsert.push({
           thermostat_id: existingId,
           ts: nowIso,
