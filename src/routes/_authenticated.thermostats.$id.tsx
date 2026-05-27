@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ShieldAlert, Link2Off } from "lucide-react";
+import { ThermostatSettingsTabs } from "@/components/ThermostatSettingsTabs";
+
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -38,10 +40,22 @@ function ThermostatPage() {
   const { data: schedules } = useSuspenseQuery(schedulesQO);
   const { data: devices } = useSuspenseQuery(devicesQO);
   const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
+  const allDevices = (devices.thermostats as any[]) ?? [];
+  const building = (devices as any).building as { id: string; name: string } | null;
   const t = data.thermostat;
   const { data: zonesData } = useSuspenseQuery(zonesQO);
   const zoneOptions = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
+  const zoneLabel = zoneOptions.find((z) => z.zone === t.zone)?.label ?? t.zone;
+  const counts = {
+    all: allDevices.length,
+    zone: allDevices.filter((d) => d.zone === t.zone).length,
+    apartment: t.apartment_id
+      ? allDevices.filter((d) => d.apartment_id === t.apartment_id).length
+      : 0,
+    building: building ? allDevices.length : 0,
+  };
   const qc = useQueryClient();
+
   const update = useServerFn(updateThermostat);
   const m = useMutation({
     mutationFn: update,
@@ -327,7 +341,27 @@ function ThermostatPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ThermostatSettingsTabs
+              thermostat={t}
+              zoneLabel={zoneLabel}
+              apartmentNumber={(t.apartments as any)?.number}
+              buildingName={building?.name}
+              buildingId={building?.id ?? null}
+              counts={counts}
+            />
+          </CardContent>
+        </Card>
       </div>
+
     </div>
   );
 }

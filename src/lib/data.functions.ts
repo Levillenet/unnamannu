@@ -1,8 +1,58 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
-import { fetchDevices, updateDevice, pickRoomTemp, pickFloorTemp } from "./ebeco.server";
+import {
+  fetchDevices,
+  updateDevice,
+  pickRoomTemp,
+  pickFloorTemp,
+  EBECO_PATCH_FIELDS,
+  ebecoPatchToColumns,
+  type EbecoPatch,
+} from "./ebeco.server";
 import { z } from "zod";
+
+// Zod schema for any subset of Ebeco-forwardable fields.
+const ebecoPatchSchema = z
+  .object({
+    displayName: z.string().min(1).max(100).optional(),
+    powerOn: z.boolean().optional(),
+    temperatureSet: z.number().min(5).max(35).optional(),
+    minSetpoint: z.number().min(5).max(35).optional(),
+    maxSetpoint: z.number().min(5).max(35).optional(),
+    sensorApplication: z.enum(["floor", "room", "roomAndFloor"]).optional(),
+    sensorType: z.string().min(1).max(20).optional(),
+    minFloorTemp: z.number().min(5).max(40).optional(),
+    maxFloorTemp: z.number().min(5).max(40).optional(),
+    floorTempCutOff: z.number().min(5).max(45).optional(),
+    temperatureCalibrationRoom: z.number().min(-5).max(5).optional(),
+    temperatureCalibrationFloor: z.number().min(-5).max(5).optional(),
+    displayWhenIdle: z
+      .enum(["off", "dateAndTime", "temperature", "temperatureAndTime"])
+      .optional(),
+    lightLedTextWhenIdle: z.number().int().min(0).max(100).optional(),
+    lightLedTextDuringOperation: z.number().int().min(0).max(100).optional(),
+    screenSaverEnabled: z.boolean().optional(),
+    language: z.string().min(1).max(10).optional(),
+    timeFormat: z.string().min(1).max(10).optional(),
+    dateFormat: z.string().min(1).max(20).optional(),
+    childLock: z.boolean().optional(),
+    pinCodeEnabled: z.boolean().optional(),
+    installerLock: z.boolean().optional(),
+    selectedProgram: z.string().min(1).max(20).optional(),
+    awayTemperature: z.number().min(5).max(35).optional(),
+    vacationFrom: z.string().max(40).optional(),
+    vacationTo: z.string().max(40).optional(),
+    vacationTemperature: z.number().min(5).max(35).optional(),
+    installedEffect: z.number().int().min(0).max(10000).optional(),
+    adaptiveStart: z.boolean().optional(),
+    openWindowDetection: z.boolean().optional(),
+    openWindowSensitivity: z.number().int().min(0).max(10).optional(),
+    regulatorMode: z.string().min(1).max(20).optional(),
+    pwmPeriod: z.number().int().min(0).max(120).optional(),
+  })
+  .strict();
+
 
 
 async function requireAdmin(supabase: any, userId: string) {
@@ -484,13 +534,18 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
       const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
       const existingId = existingByEbecoId.get(ebecoId);
 
+      // Build column patch from any Ebeco fields present on the device.
+      const ebecoCols = ebecoPatchToColumns(d as unknown as EbecoPatch);
+
       if (existingId) {
-        const patch: { last_seen_at: string; status: "online" | "offline"; current_setpoint?: number } = {
+        const patch: Record<string, unknown> = {
           last_seen_at: nowIso,
           status,
+          ebeco_settings: d as unknown as Record<string, unknown>,
+          ...ebecoCols,
         };
         if (setpoint != null) patch.current_setpoint = setpoint;
-        const { error } = await supabase.from("thermostats").update(patch).eq("id", existingId);
+        const { error } = await (supabase.from("thermostats") as any).update(patch).eq("id", existingId);
         if (error) throw new Error(error.message);
         updated += 1;
 
@@ -502,8 +557,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           floor_temp: pickFloorTemp(d),
         });
       } else {
-        const { data: ins, error } = await supabase
-          .from("thermostats")
+        const { data: ins, error } = await (supabase.from("thermostats") as any)
           .insert({
             ebeco_device_id: ebecoId,
             name: d.displayName ?? `EB-${ebecoId}`,
@@ -512,9 +566,12 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
             status,
             current_setpoint: setpoint ?? 21,
             last_seen_at: nowIso,
+            ebeco_settings: d as unknown as Record<string, unknown>,
+            ...ebecoCols,
           })
           .select("id")
           .single();
+
         if (error) throw new Error(error.message);
         if (!ins?.id) continue;
         created += 1;
@@ -526,6 +583,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           floor_temp: pickFloorTemp(d),
         });
       }
+
     }
 
     const validReadings = readingsToInsert.filter((r) => !!r.thermostat_id);
@@ -562,18 +620,23 @@ export const listDevices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const [{ data: thermostats }, { data: apartments }] = await Promise.all([
+    const [{ data: thermostats }, { data: apartments }, { data: building }] = await Promise.all([
       supabase
         .from("thermostats")
-        .select("id,name,ebeco_device_id,apartment_id,zone,status,last_seen_at,apartments(id,number)")
+        .select(
+          "id,name,ebeco_device_id,apartment_id,zone,status,last_seen_at,enabled,current_setpoint,display_when_idle,child_lock,sensor_application,selected_program,adaptive_start,open_window_detection,light_idle,light_active,language,apartments(id,number)",
+        )
         .order("ebeco_device_id"),
       supabase.from("apartments").select("id,number").order("number"),
+      supabase.from("buildings").select("id,name").limit(1).maybeSingle(),
     ]);
     return {
       thermostats: thermostats ?? [],
       apartments: apartments ?? [],
+      building: building ?? null,
     };
   });
+
 
 export const allocateThermostat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -639,3 +702,125 @@ export const createApartment = createServerFn({ method: "POST" })
     });
     return created;
   });
+
+// ---------- Ebeco settings: single + broadcast ----------
+
+const scopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("self") }),
+  z.object({ kind: z.literal("all") }),
+  z.object({ kind: z.literal("zone"), zone: z.string().min(1).max(40) }),
+  z.object({ kind: z.literal("apartment"), apartment_id: z.string().uuid() }),
+  z.object({ kind: z.literal("building"), building_id: z.string().uuid() }),
+]);
+
+async function pushPatchToTargets(
+  supabase: any,
+  targetIds: string[],
+  patch: EbecoPatch,
+): Promise<{ succeeded: number; failed: number; errors: string[] }> {
+  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [] };
+
+  const { data: rows, error } = await supabase
+    .from("thermostats")
+    .select("id,ebeco_device_id")
+    .in("id", targetIds);
+  if (error) throw new Error(error.message);
+
+  const withEbeco = (rows ?? []).filter((r: any) => r.ebeco_device_id);
+  const results = await Promise.allSettled(
+    withEbeco.map((r: any) =>
+      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(() => r.id as string),
+    ),
+  );
+
+  const succeededIds: string[] = [];
+  const errors: string[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled") succeededIds.push(r.value);
+    else errors.push(String((r.reason as Error)?.message ?? r.reason));
+  }
+
+  // Mirror successful changes into local columns + ebeco_settings JSONB.
+  const colPatch = ebecoPatchToColumns(patch);
+  if (succeededIds.length > 0 && Object.keys(colPatch).length > 0) {
+    const { error: upErr } = await (supabase.from("thermostats") as any)
+      .update(colPatch)
+      .in("id", succeededIds);
+    if (upErr) errors.push(upErr.message);
+  }
+
+  return { succeeded: succeededIds.length, failed: errors.length, errors };
+}
+
+export const updateThermostatSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      patch: ebecoPatchSchema,
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const result = await pushPatchToTargets(supabase, [data.id], data.patch as EbecoPatch);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.settings.update",
+      entity_type: "thermostat",
+      entity_id: data.id,
+      details: { patch: data.patch, ...result },
+    });
+    if (result.failed > 0 && result.succeeded === 0) {
+      throw new Error(result.errors[0] ?? "Ebeco-päivitys epäonnistui");
+    }
+    return result;
+  });
+
+export const broadcastThermostatSetting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      source_id: z.string().uuid(),
+      patch: ebecoPatchSchema,
+      scope: scopeSchema,
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+
+    // Resolve scope → target thermostat ids.
+    let query = supabase.from("thermostats").select("id,zone,apartment_id");
+    const scope = data.scope;
+    if (scope.kind === "self") {
+      query = query.eq("id", data.source_id);
+    } else if (scope.kind === "zone") {
+      query = query.eq("zone", scope.zone);
+    } else if (scope.kind === "apartment") {
+      query = query.eq("apartment_id", scope.apartment_id);
+    } else if (scope.kind === "building") {
+      // building → all apartments in building → thermostats
+      const { data: apts } = await supabase
+        .from("apartments")
+        .select("id")
+        .eq("building_id", scope.building_id);
+      const ids = (apts ?? []).map((a: any) => a.id);
+      if (ids.length === 0) return { total: 0, succeeded: 0, failed: 0, errors: [] };
+      query = query.in("apartment_id", ids);
+    }
+    // scope.kind === "all": no filter (every thermostat).
+
+    const { data: targets, error } = await query;
+    if (error) throw new Error(error.message);
+    const ids = (targets ?? []).map((t: any) => t.id as string);
+
+    const result = await pushPatchToTargets(supabase, ids, data.patch as EbecoPatch);
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.settings.broadcast",
+      entity_type: "thermostat",
+      entity_id: data.source_id,
+      details: { scope: data.scope, patch: data.patch, total: ids.length, ...result },
+    });
+
+    return { total: ids.length, ...result };
+  });
+

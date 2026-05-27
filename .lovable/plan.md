@@ -1,47 +1,109 @@
-# Ebeco Connect API -yhteys
 
-Tällä hetkellä `syncEbecoDevices` arpoo satunnaisia laitteita. Korvataan se oikealla integraatiolla Ebecon REST-rajapintaan, ja lisätään setpointin kaksisuuntainen synkronointi.
+# Ebeco-asetusten täysi hallinta + per-kenttä broadcast
 
-## 1. Salaisuudet
+## Tavoite
 
-Pyydetään `add_secret`-työkalulla turvalomakkeella:
-- `EBECO_EMAIL` — kiinteistön yhteisen Ebeco Connect ‑tilin sähköposti
-- `EBECO_PASSWORD` — saman tilin salasana
+1. Hae ja tallenna Ebeco-rajapinnan kaikki säädettävät asetukset jokaiselle termostaatille.
+2. Näytä ne termostaattikortilla ryhmiteltynä osioihin.
+3. Lisää **jokaisen yksittäisen asetuksen viereen "Käytä myös..." -nappi**, josta voi valita kohdejoukon (kaikki / sama vyöhyke / sama huoneisto / sama talo) ja ajaa muutoksen kerralla.
+4. Laitteet-sivulle erillinen "Keskitetyt asetukset" -kortti samasta toiminnosta laajemmassa lomakkeessa.
 
-Tunnukset tallennetaan vain backend-secreteinä, eivät päädy selainkoodiin.
+## Tuettavat Ebeco-asetukset
 
-## 2. Ebeco-clientti (`src/lib/ebeco.server.ts`)
+**Lämpötila & säätö**
+- `temperatureSet`, `minSetpoint`, `maxSetpoint`
+- `temperatureCalibrationRoom`, `temperatureCalibrationFloor`
+- `adaptiveStart`, `openWindowDetection`, `openWindowSensitivity`
 
-Server-only helper, joka kapseloi API-kutsut:
-- `loginEbeco()` → `POST https://ebecoconnect.com/api/TokenAuth/Authenticate` palauttaa `accessToken`. Tokenia välimuistitetaan globaalisti (~50 min TTL) per worker-instanssi, uudelleenkirjautuminen 401:n yhteydessä.
-- `fetchDevices()` → `GET /api/services/app/Devices/UserDevices` palauttaa listan: `id`, `displayName`, `temperatureSet`, `temperatureFloor`, `temperatureRoom`, `powerOn`, `online`, `building`/`apartmentName`.
-- `updateDevice(deviceId, { temperatureSet, powerOn? })` → `PUT /api/services/app/Devices/UpdateUserDevice`.
+**Anturi**
+- `sensorApplication` (`floor` / `room` / `roomAndFloor`)
+- `sensorType` (NTC 10k/12k/15k/22k/33k/47k)
+- `minFloorTemp`, `maxFloorTemp`, `floorTempCutOff`
 
-Kaikki kutsut käyttävät `process.env.EBECO_EMAIL` / `PASSWORD` ja heittävät kuvaavat virheet (401 / 5xx).
+**Näyttö**
+- `displayWhenIdle` (`off` / `dateAndTime` / `temperature` / `temperatureAndTime`)
+- `lightLedTextWhenIdle` (0–100), `lightLedTextDuringOperation` (0–100)
+- `screenSaverEnabled`, `language`, `timeFormat`, `dateFormat`
 
-## 3. Server-funktioiden päivitys (`src/lib/data.functions.ts`)
+**Lukitus**
+- `childLock`, `pinCodeEnabled`, `installerLock`
 
-- **`syncEbecoDevices`** kirjoitetaan uusiksi: kutsuu `fetchDevices()`, upsertaa `thermostats`-tauluun `ebeco_device_id`-avaimella. Uusille laitteille `apartment_id = null` (allokoidaan käsin Laitteet-näkymästä). Olemassa olevien laitteiden `last_seen_at`, `status` (`online`/`offline`) ja `current_setpoint` päivitetään Ebecon arvolla. Palauttaa `{ created, updated, total }`. Lisää lukema `thermostat_readings`-tauluun (room_temp, floor_temp, setpoint).
-- **`updateThermostatSetpoint`** (jo olemassa oleva polku settaamiseen) laajennetaan: tietokantapäivityksen jälkeen jos termostaatilla on `ebeco_device_id`, kutsutaan `updateDevice(...)`. Jos Ebeco-kutsu epäonnistuu, palautetaan virhe käyttäjälle ja peruutetaan DB-muutos (tai merkitään `status='offline'`) — käytännössä: koitetaan ensin Ebecoa, vasta onnistumisen jälkeen DB.
-- **`applyZoneToThermostats`** (bulk vyöhykkeen tallennus) lähettää muutokset jokaiselle ko. vyöhykkeen termostaatille Ebecoon Promise.allSettled:lla; epäonnistuneet listataan vastauksessa toastin näytettäväksi.
+**Ohjelma**
+- `selectedProgram` (`home` / `away` / `vacation` / `schedule` / `manual`)
+- `awayTemperature`, `vacationFrom`, `vacationTo`, `vacationTemperature`
 
-## 4. UI-vihjeet (kevyet)
+**Asennus**
+- `installedEffect` (W), `regulatorMode`, `pwmPeriod`
 
-- Asetukset → Yleiset → "Ebeco Cloud API" -kortti: näytetään yhteyden tila (viimeisin sync, montako laitetta) ja "Testaa yhteys" -nappi, joka kutsuu `syncEbecoDevices` ja näyttää tuloksen toastina.
-- Olemassaolevat "Synkronoi Ebecosta" ja vyöhykkeen tallennus-napit toimivat ennallaan, mutta puhuvat nyt oikeaan API:in.
+**Perustiedot**
+- `displayName`, `powerOn`
 
-## 5. Tekniset huomiot
+Snapshot koko vastauksesta säilyy myös JSONB-kenttänä `ebeco_settings`.
 
-- Ebeco Connectin pohjana on ASP.NET Boilerplate -tyyppinen `{ result: { accessToken } }` -vastausmuoto; client purkaa sen huolellisesti.
-- Worker-runtime: käytetään pelkkää `fetch`ia (ei Node-only kirjastoja). Tokenin cache `globalThis`issa per worker — riittävä, koska Authenticate on halpa.
-- Audit-log: jokainen Ebeco-puolelle tehty muutos kirjataan `audit_log`-tauluun (`action: "ebeco.update"`, `entity_id: thermostat.id`, `details: { setpoint }`).
-- RLS: vain `requireSupabaseAuth` -middleware; service rolea ei tarvita.
+## Tietokantamuutos
 
-## Muokattavat / luotavat tiedostot
+Migraatio lisää `thermostats`-tauluun:
+- `ebeco_settings jsonb` (täysi snapshot Ebecosta)
+- Yleisimmät kentät omina sarakkeina suodatusta ja näyttölistoja varten: `sensor_application`, `sensor_type`, `display_when_idle`, `light_idle`, `light_active`, `child_lock`, `selected_program`, `installed_effect_w`, `adaptive_start`, `open_window_detection`, `temperature_calibration_room`, `temperature_calibration_floor`, `min_floor_temp`, `max_floor_temp`, `floor_temp_cut_off`, `language`
 
-- **uusi** `src/lib/ebeco.server.ts` — API-clientti
-- `src/lib/data.functions.ts` — `syncEbecoDevices`, `updateThermostatSetpoint`, `applyZoneToThermostats` käyttävät clienttiä
-- `src/routes/_authenticated.settings.tsx` — Ebeco-kortin tilanäyttö ja testinappi
-- secret-pyyntö: `EBECO_EMAIL`, `EBECO_PASSWORD`
+## Backend (server functions)
 
-Avoin kysymys jos Ebecon API ei vastaakaan tämän mallin mukaan (esim. eri endpoint-polut tuoreessa versiossa): säädetään client kun ensimmäinen kutsu tuottaa vastauksen — tehdään diagnostinen GET ensimmäisessä toteutuksessa ja sovitetaan field-mappaus.
+`src/lib/ebeco.server.ts`
+- Laajenna `EbecoDevice`-tyyppi kaikilla yllä mainituilla kentillä.
+- `updateDevice(input)` hyväksyy minkä tahansa osajoukon kentistä ja lähettää ne `PUT /services/app/Devices/UpdateUserDevice` -kutsuun.
+
+`src/lib/data.functions.ts`
+- `syncEbecoDevices`: tallenna kaikki tuetut kentät sekä omiin sarakkeisiin että `ebeco_settings`-JSONB:hen.
+- **Uusi** `updateThermostatSettings({ id, patch })`: lähettää patchin Ebecoon ja päivittää lokaalin rivin.
+- **Uusi** `broadcastThermostatSetting({ source_id, patch, scope })` jossa
+  - `scope = { kind: "all" } | { kind: "zone", zone } | { kind: "apartment", apartment_id } | { kind: "building", building_id }`
+  - kerää kohdetermostaattien `ebeco_device_id`:t (vain joilla `apartment_id` asetettu ja `ebeco_device_id` olemassa)
+  - ajaa `Promise.allSettled`-rinnakkain Ebeco-päivitykset
+  - päivittää lokaalit rivit ja palauttaa `{ total, succeeded, failed, errors }`
+
+## UI – termostaattikortti `/thermostats/$id`
+
+Uusi rakenne: yläosa pysyy (nimi, status, lämpötila), sen alla välilehdet:
+- **Lämpötila** · **Anturi** · **Näyttö** · **Lukitus** · **Ohjelma** · **Asennus**
+
+Jokaisessa rivissä:
+```text
+[ Label ]   [ kenttä / select / slider ]   [ Tallenna ]   [ ⋯ Käytä myös ▾ ]
+```
+
+**"Käytä myös" -popover** (oma komponentti `BroadcastButton`):
+- Otsikko: "Käytä tämä asetus myös…"
+- Painikkeet:
+  - Kaikkiin termostaatteihin (n kpl)
+  - Vyöhykkeelle "{label}" (n kpl)
+  - Huoneistoon {numero} (n kpl)
+  - Talon "{nimi}" termostaatteihin (n kpl)
+- Vahvistus + toast-yhteenveto: "Päivitetty 11/12 (1 offline)"
+
+Vyöhyke/huoneisto/talo luetaan termostaatin omasta rivistä; lukumäärät esilasketaan `listDevices`-vastauksesta.
+
+## UI – Laitteet-sivu `/devices`
+
+Lisää uusi kortti **"Keskitetyt asetukset"** allokointi-osioiden yläpuolelle:
+- Valitse kohdejoukko (radio: kaikki / vyöhyke / huoneisto / talo)
+- Lomake yleisimmistä kentistä: displayWhenIdle, lightIdle, lightActive, childLock, adaptiveStart, openWindowDetection, sensorApplication, selectedProgram, language
+- "Käytä valittuihin" → `broadcastThermostatSetting` (yksi kutsu per muutettu kenttä)
+- Tulostoasti yhteenvedolla
+
+## Tekniset yksityiskohdat
+
+- Kaikki rajapintakentät tyypitetään `EbecoSettingsPatch`-tyypille (zod-skeema), jota sekä `updateThermostatSettings` että `broadcastThermostatSetting` käyttävät `inputValidator`issaan.
+- Broadcastissä suodatetaan pois lähde-termostaatti `source_id` *vain jos* käyttäjä on jo tallentanut sen erikseen — muuten se sisältyy mukaan.
+- Offline-laitteet (status ≠ online) yritetään silti; Ebeco API-virhe → kirjataan `failed`-listalle ja toastiin.
+- Audit-log: `broadcast_settings`-merkintä jokaisesta broadcast-toiminnosta (`scope`, `patch`, `succeeded/failed`).
+- Lokalisointi: kaikki labelit ja enum-vaihtoehdot suomeksi (esim. `displayWhenIdle` → "Päivämäärä ja kello", "Lämpötila", "Pimeä", "Lämpötila + kello").
+
+## Toteutusjärjestys
+
+1. Migraatio: lisää sarakkeet ja `ebeco_settings` JSONB.
+2. `ebeco.server.ts`: laajenna tyypit + `updateDevice`-payload.
+3. `data.functions.ts`: päivitä `syncEbecoDevices` + lisää `updateThermostatSettings` ja `broadcastThermostatSetting`.
+4. `BroadcastButton`-komponentti (popover + scope-valinta).
+5. Uusi termostaattikortti välilehdillä, joka käyttää `BroadcastButton`ia.
+6. Laitteet-sivun "Keskitetyt asetukset" -kortti.
+7. Aja `Synkronoi Ebecosta` → varmista että kaikki kentät tulevat ja tallentuvat.
