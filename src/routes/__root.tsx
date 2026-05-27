@@ -64,8 +64,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Ebeco-hallinta — Lattialämmityksen ohjausjärjestelmä" },
-      { name: "description", content: "Keskitetty kiinteistön lattialämmityksen hallinta Ebeco EB-Therm 500 -termostaateille." },
+      { title: "Ebeco-hallinta — Kiinteistöautomaation ohjausjärjestelmä" },
+      { name: "description", content: "Keskitetty kiinteistöautomaation hallinta Ebeco EB-Therm 500 -termostaateille." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
