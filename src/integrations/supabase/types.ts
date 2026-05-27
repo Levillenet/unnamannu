@@ -14,16 +14,291 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      apartments: {
+        Row: {
+          building_id: string
+          created_at: string
+          floor: number | null
+          id: string
+          number: string
+          resident_name: string | null
+          size_m2: number | null
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          floor?: number | null
+          id?: string
+          number: string
+          resident_name?: string | null
+          size_m2?: number | null
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          floor?: number | null
+          id?: string
+          number?: string
+          resident_name?: string | null
+          size_m2?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apartments_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buildings: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      schedule_assignments: {
+        Row: {
+          apartment_id: string | null
+          created_at: string
+          id: string
+          schedule_id: string
+          thermostat_id: string | null
+        }
+        Insert: {
+          apartment_id?: string | null
+          created_at?: string
+          id?: string
+          schedule_id: string
+          thermostat_id?: string | null
+        }
+        Update: {
+          apartment_id?: string | null
+          created_at?: string
+          id?: string
+          schedule_id?: string
+          thermostat_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_assignments_apartment_id_fkey"
+            columns: ["apartment_id"]
+            isOneToOne: false
+            referencedRelation: "apartments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_thermostat_id_fkey"
+            columns: ["thermostat_id"]
+            isOneToOne: false
+            referencedRelation: "thermostats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          weekly_program: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          weekly_program?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          weekly_program?: Json
+        }
+        Relationships: []
+      }
+      thermostat_readings: {
+        Row: {
+          energy_kwh: number | null
+          floor_temp: number | null
+          id: number
+          power_w: number | null
+          room_temp: number | null
+          setpoint: number | null
+          thermostat_id: string
+          ts: string
+        }
+        Insert: {
+          energy_kwh?: number | null
+          floor_temp?: number | null
+          id?: number
+          power_w?: number | null
+          room_temp?: number | null
+          setpoint?: number | null
+          thermostat_id: string
+          ts?: string
+        }
+        Update: {
+          energy_kwh?: number | null
+          floor_temp?: number | null
+          id?: number
+          power_w?: number | null
+          room_temp?: number | null
+          setpoint?: number | null
+          thermostat_id?: string
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thermostat_readings_thermostat_id_fkey"
+            columns: ["thermostat_id"]
+            isOneToOne: false
+            referencedRelation: "thermostats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thermostats: {
+        Row: {
+          apartment_id: string
+          created_at: string
+          current_schedule_id: string | null
+          current_setpoint: number
+          ebeco_device_id: string | null
+          enabled: boolean
+          id: string
+          last_seen_at: string | null
+          locked: boolean
+          max_setpoint: number
+          min_setpoint: number
+          name: string
+          room: string | null
+          status: Database["public"]["Enums"]["thermostat_status"]
+          updated_at: string
+        }
+        Insert: {
+          apartment_id: string
+          created_at?: string
+          current_schedule_id?: string | null
+          current_setpoint?: number
+          ebeco_device_id?: string | null
+          enabled?: boolean
+          id?: string
+          last_seen_at?: string | null
+          locked?: boolean
+          max_setpoint?: number
+          min_setpoint?: number
+          name: string
+          room?: string | null
+          status?: Database["public"]["Enums"]["thermostat_status"]
+          updated_at?: string
+        }
+        Update: {
+          apartment_id?: string
+          created_at?: string
+          current_schedule_id?: string | null
+          current_setpoint?: number
+          ebeco_device_id?: string | null
+          enabled?: boolean
+          id?: string
+          last_seen_at?: string | null
+          locked?: boolean
+          max_setpoint?: number
+          min_setpoint?: number
+          name?: string
+          room?: string | null
+          status?: Database["public"]["Enums"]["thermostat_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thermostats_apartment_id_fkey"
+            columns: ["apartment_id"]
+            isOneToOne: false
+            referencedRelation: "apartments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thermostats_current_schedule_id_fkey"
+            columns: ["current_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "manager" | "resident"
+      thermostat_status: "online" | "offline" | "alarm"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +425,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["manager", "resident"],
+      thermostat_status: ["online", "offline", "alarm"],
+    },
   },
 } as const
