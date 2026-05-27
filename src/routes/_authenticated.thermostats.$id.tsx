@@ -232,6 +232,36 @@ function ThermostatPage() {
             <CardTitle className="text-base">Ohjaus</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <div className="flex items-baseline justify-between">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Huonelämpötila nyt
+                </Label>
+                <span className="text-3xl font-semibold text-primary">
+                  {roomTempRaw != null ? `${Number(roomTempRaw).toFixed(1)} °C` : "—"}
+                </span>
+              </div>
+              <div className="mt-1 flex items-baseline justify-between text-xs text-muted-foreground">
+                <span>
+                  {floorTempRaw != null
+                    ? `Lattia ${Number(floorTempRaw).toFixed(1)} °C`
+                    : "Lattia —"}
+                </span>
+                <span>päivitetty {lastSeenLabel}</span>
+              </div>
+            </div>
+
+            {returnLabel && (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                <div className="font-medium text-warning">
+                  Asetus {setpoint.toFixed(1)} °C ylittää asiakkaan ylärajan ({guestMax.toFixed(1)} °C)
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  Sovellus palauttaa asetuksen rajaan {returnLabel}.
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="mb-2 flex items-baseline justify-between">
                 <Label>Asetuslämpötila</Label>
@@ -251,10 +281,11 @@ function ThermostatPage() {
               </div>
               {setpoint > guestMax && (
                 <p className="mt-2 text-xs text-warning">
-                  Arvo ylittää asiakkaan ylärajan ({guestMax.toFixed(1)} °C) – palautuu rajaan tallennettaessa.
+                  Sovellus pakottaa arvon takaisin asiakkaan ylärajaan ({guestMax.toFixed(1)} °C) palautusviiveen jälkeen.
                 </p>
               )}
             </div>
+
 
             <div className="border-t pt-4">
               <div className="mb-2 flex items-baseline justify-between">
