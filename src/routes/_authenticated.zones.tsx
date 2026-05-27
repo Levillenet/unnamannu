@@ -430,18 +430,7 @@ function ZonesPage() {
               row={z}
               count={data.counts[z.zone] ?? 0}
               saving={saveM.isPending}
-              onSave={(a) =>
-                saveM.mutate({
-                  data: {
-                    ...baseFor(z),
-                    guest_max_setpoint: a.guest,
-                    override_grace_minutes: a.grace,
-                    default_setpoint: a.def,
-                    max_hold_minutes: a.hold,
-                  },
-                })
-              }
-              onApplyMaxToAll={(a) =>
+              onSaveAndApply={(a) =>
                 saveM.mutate({
                   data: {
                     ...baseFor(z),
