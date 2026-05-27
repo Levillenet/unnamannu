@@ -222,10 +222,63 @@ function ThermostatPage() {
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+            </Select>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Nimi</Label>
+                <div className="mt-1 flex gap-2">
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!name.trim() || name === t.name}
+                    onClick={() => m.mutate({ data: { id: t.id, name: name.trim() } })}
+                  >
+                    Tallenna
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Huoneisto</Label>
+                <Select
+                  value={t.apartment_id ?? "none"}
+                  onValueChange={(v) =>
+                    m.mutate({ data: { id: t.id, apartment_id: v === "none" ? null : v } })
+                  }
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Allokoimaton" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Allokoimaton</SelectItem>
+                    {apartments.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>Huoneisto {a.number}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {t.apartment_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    m.mutate({ data: { id: t.id, apartment_id: null } });
+                    navigate({ to: "/devices" });
+                  }}
+                >
+                  <Link2Off className="mr-2 h-4 w-4" />
+                  Vapauta laite (palauta allokoimattomiin)
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
+
 
         <Card className="lg:col-span-2">
           <CardHeader>
