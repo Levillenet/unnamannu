@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults, syncEbecoDevice } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
