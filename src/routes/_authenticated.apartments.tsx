@@ -17,6 +17,19 @@ import { useIsAdmin } from "@/hooks/use-current-role";
 
 const qo = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
 
+function pickRoomTemp(t: any): number | null {
+  const eb = (t?.ebeco_settings ?? {}) as Record<string, unknown>;
+  if (typeof eb.temperatureRoomDecimals === "number") return eb.temperatureRoomDecimals as number;
+  if (typeof eb.temperatureRoom === "number") return eb.temperatureRoom as number;
+  return null;
+}
+function pickFloorTemp(t: any): number | null {
+  const eb = (t?.ebeco_settings ?? {}) as Record<string, unknown>;
+  if (typeof eb.temperatureFloorDecimals === "number") return eb.temperatureFloorDecimals as number;
+  if (typeof eb.temperatureFloor === "number") return eb.temperatureFloor as number;
+  return null;
+}
+
 export const Route = createFileRoute("/_authenticated/apartments")({
   loader: ({ context }) => context.queryClient.ensureQueryData(qo),
   component: ApartmentsRoute,
@@ -155,6 +168,7 @@ function ApartmentsPage() {
                 <TableHead>Kerros</TableHead>
                 <TableHead>Termostaatit</TableHead>
                 <TableHead>Huone / Kylpyhuone</TableHead>
+                <TableHead>Mitattu ka.</TableHead>
                 <TableHead>Keskiasetus</TableHead>
                 <TableHead>Tila</TableHead>
                 <TableHead className="w-10" />
@@ -166,6 +180,10 @@ function ApartmentsPage() {
                 const setpoints = ts.map((t) => Number(t.current_setpoint)).filter(Number.isFinite);
                 const avg = setpoints.length
                   ? (setpoints.reduce((s, v) => s + v, 0) / setpoints.length).toFixed(1)
+                  : "—";
+                const roomTemps = ts.map(pickRoomTemp).filter((v): v is number => v != null);
+                const avgRoom = roomTemps.length
+                  ? (roomTemps.reduce((s, v) => s + v, 0) / roomTemps.length).toFixed(1)
                   : "—";
                 const rooms = ts.filter((t) => t.zone === "room").length;
                 const baths = ts.filter((t) => t.zone === "bathroom").length;
@@ -182,6 +200,7 @@ function ApartmentsPage() {
                       <TableCell>krs {a.floor}</TableCell>
                       <TableCell>{ts.length}</TableCell>
                       <TableCell className="text-muted-foreground">{rooms} · {baths}</TableCell>
+                      <TableCell className="text-primary">{avgRoom} °C</TableCell>
                       <TableCell>{avg} °C</TableCell>
                       <TableCell>
                         {al === 0 && off === 0 ? (
@@ -203,7 +222,7 @@ function ApartmentsPage() {
                     </TableRow>
                     {isOpen && (
                       <TableRow className="bg-muted/20 hover:bg-muted/20">
-                        <TableCell colSpan={8} className="p-0">
+                        <TableCell colSpan={9} className="p-0">
                           <div className="px-6 py-4">
                             {ts.length === 0 ? (
                               <p className="text-sm text-muted-foreground">Ei termostaatteja</p>
@@ -228,7 +247,15 @@ function ApartmentsPage() {
                                             {t.room ?? t.name ?? "Termostaatti"}
                                           </div>
                                           <div className="text-xs text-muted-foreground">
-                                            Asiakas-max {Number(t.guest_max_setpoint).toFixed(1)} °C
+                                            {(() => {
+                                              const r = pickRoomTemp(t);
+                                              const f = pickFloorTemp(t);
+                                              const parts: string[] = [];
+                                              if (r != null) parts.push(`Mitattu ${r.toFixed(1)} °C`);
+                                              if (f != null) parts.push(`lattia ${f.toFixed(1)} °C`);
+                                              parts.push(`asiakas-max ${Number(t.guest_max_setpoint).toFixed(1)} °C`);
+                                              return parts.join(" · ");
+                                            })()}
                                             {t.locked && (
                                               <span className="ml-2 inline-flex items-center gap-1">
                                                 <Lock className="h-3 w-3" /> Lukittu

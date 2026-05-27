@@ -175,7 +175,7 @@ export const listApartments = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: apartments, error } = await supabase
       .from("apartments")
-      .select("*, thermostats(id,name,room,status,current_setpoint,guest_max_setpoint,zone,locked,last_seen_at)")
+      .select("*, thermostats(id,name,room,status,current_setpoint,guest_max_setpoint,zone,locked,last_seen_at,ebeco_settings)")
       .order("number");
     if (error) throw new Error(error.message);
     return apartments ?? [];
