@@ -165,17 +165,36 @@ export const applyZoneToThermostats = createServerFn({ method: "POST" })
       guest_max_setpoint: data.guest_max_setpoint,
     };
     if (data.applyDefaultSetpoint) patch.current_setpoint = data.default_setpoint;
-    const { error, count } = await supabase
+    const { data: targets, error: selErr } = await supabase
       .from("thermostats")
-      .update(patch, { count: "exact" })
+      .select("id,ebeco_device_id")
       .eq("zone", data.zone);
+    if (selErr) throw new Error(selErr.message);
+    const { error } = await supabase.from("thermostats").update(patch).eq("zone", data.zone);
     if (error) throw new Error(error.message);
+
+    let pushed = 0;
+    let failed = 0;
+    if (data.applyDefaultSetpoint && (targets ?? []).length > 0) {
+      const results = await Promise.allSettled(
+        (targets ?? [])
+          .filter((t) => t.ebeco_device_id)
+          .map((t) =>
+            updateDevice({ id: Number(t.ebeco_device_id), temperatureSet: data.default_setpoint }),
+          ),
+      );
+      pushed = results.filter((r) => r.status === "fulfilled").length;
+      failed = results.filter((r) => r.status === "rejected").length;
+    }
+
+    const affected = (targets ?? []).length;
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: "zone.apply_to_thermostats", entity_type: "zone", entity_id: data.zone,
-      details: { ...patch, affected: count ?? 0 },
+      details: { ...patch, affected, pushed, failed },
     });
-    return { affected: count ?? 0 };
+    return { affected, pushed, failed };
   });
+
 
 export const getApartment = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
