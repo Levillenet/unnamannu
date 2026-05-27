@@ -261,65 +261,116 @@ export type Database = {
       }
       thermostats: {
         Row: {
+          adaptive_start: boolean | null
           apartment_id: string | null
+          child_lock: boolean | null
           created_at: string
           current_schedule_id: string | null
           current_setpoint: number
+          display_when_idle: string | null
           ebeco_device_id: string | null
+          ebeco_settings: Json | null
           enabled: boolean
+          floor_temp_cut_off: number | null
           guest_max_setpoint: number
           id: string
+          installed_effect_w: number | null
+          language: string | null
           last_seen_at: string | null
+          light_active: number | null
+          light_idle: number | null
           locked: boolean
+          max_floor_temp: number | null
           max_hold_started_at: string | null
           max_setpoint: number
+          min_floor_temp: number | null
           min_setpoint: number
           name: string
+          open_window_detection: boolean | null
           override_started_at: string | null
           room: string | null
+          selected_program: string | null
+          sensor_application: string | null
+          sensor_type: string | null
           status: Database["public"]["Enums"]["thermostat_status"]
+          temperature_calibration_floor: number | null
+          temperature_calibration_room: number | null
           updated_at: string
           zone: string
         }
         Insert: {
+          adaptive_start?: boolean | null
           apartment_id?: string | null
+          child_lock?: boolean | null
           created_at?: string
           current_schedule_id?: string | null
           current_setpoint?: number
+          display_when_idle?: string | null
           ebeco_device_id?: string | null
+          ebeco_settings?: Json | null
           enabled?: boolean
+          floor_temp_cut_off?: number | null
           guest_max_setpoint?: number
           id?: string
+          installed_effect_w?: number | null
+          language?: string | null
           last_seen_at?: string | null
+          light_active?: number | null
+          light_idle?: number | null
           locked?: boolean
+          max_floor_temp?: number | null
           max_hold_started_at?: string | null
           max_setpoint?: number
+          min_floor_temp?: number | null
           min_setpoint?: number
           name: string
+          open_window_detection?: boolean | null
           override_started_at?: string | null
           room?: string | null
+          selected_program?: string | null
+          sensor_application?: string | null
+          sensor_type?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
+          temperature_calibration_floor?: number | null
+          temperature_calibration_room?: number | null
           updated_at?: string
           zone?: string
         }
         Update: {
+          adaptive_start?: boolean | null
           apartment_id?: string | null
+          child_lock?: boolean | null
           created_at?: string
           current_schedule_id?: string | null
           current_setpoint?: number
+          display_when_idle?: string | null
           ebeco_device_id?: string | null
+          ebeco_settings?: Json | null
           enabled?: boolean
+          floor_temp_cut_off?: number | null
           guest_max_setpoint?: number
           id?: string
+          installed_effect_w?: number | null
+          language?: string | null
           last_seen_at?: string | null
+          light_active?: number | null
+          light_idle?: number | null
           locked?: boolean
+          max_floor_temp?: number | null
           max_hold_started_at?: string | null
           max_setpoint?: number
+          min_floor_temp?: number | null
           min_setpoint?: number
           name?: string
+          open_window_detection?: boolean | null
           override_started_at?: string | null
           room?: string | null
+          selected_program?: string | null
+          sensor_application?: string | null
+          sensor_type?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
+          temperature_calibration_floor?: number | null
+          temperature_calibration_room?: number | null
           updated_at?: string
           zone?: string
         }
