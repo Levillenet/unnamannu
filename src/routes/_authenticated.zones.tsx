@@ -139,7 +139,7 @@ function ZoneCard({
         </div>
 
         <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
-          <Label className="text-sm">Palautusviive ylirajan jälkeen</Label>
+          <Label className="text-sm">Palautusviive maksimiasetuksen jälkeen</Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -317,7 +317,7 @@ function NewZoneDialog({
             <Slider min={0} max={1440} step={60} value={[hold]} onValueChange={(v) => setHold(v[0])} />
           </div>
           <div>
-            <Label>Palautusviive ylirajan jälkeen (min)</Label>
+            <Label>Palautusviive maksimiasetuksen jälkeen (min)</Label>
             <Input
               type="number"
               min={0}
