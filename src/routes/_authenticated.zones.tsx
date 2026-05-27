@@ -21,6 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Layers, Plus, Trash2, Info } from "lucide-react";
+import { useIsAdmin } from "@/hooks/use-current-role";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

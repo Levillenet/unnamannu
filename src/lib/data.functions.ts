@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { writeAudit } from "./audit.server";
 import { z } from "zod";
+
+async function requireAdmin(supabase: any, userId: string) {
+  const { data } = await supabase.rpc("is_admin", { _user_id: userId });
+  if (!data) throw new Error("Vain admin voi tehdä tämän muutoksen");
+}
 
 export const getBuildingOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -112,10 +118,15 @@ export const updateThermostat = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId, claims } = context;
     const { id, ...patch } = data;
+    const adminOnly = ["apartment_id", "zone", "name"] as const;
+    if (adminOnly.some((k) => k in patch)) await requireAdmin(supabase, userId);
     const { error } = await supabase.from("thermostats").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.update", entity_type: "thermostat", entity_id: id, details: patch,
+    });
     return { ok: true };
   });
 
@@ -243,27 +254,29 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId, claims } = context;
     const { applyToAll, lockAll, ...row } = data;
+    const { data: existing } = await supabase
+      .from("zone_defaults").select("id")
+      .eq("building_id", row.building_id).eq("zone", row.zone).maybeSingle();
+    if (!existing) await requireAdmin(supabase, userId);
     const { error } = await supabase
-      .from("zone_defaults")
-      .upsert(row, { onConflict: "building_id,zone" });
+      .from("zone_defaults").upsert(row, { onConflict: "building_id,zone" });
     if (error) throw new Error(error.message);
-
     if (applyToAll) {
-      const { error: e2 } = await supabase
-        .from("thermostats")
-        .update({ guest_max_setpoint: row.guest_max_setpoint })
-        .eq("zone", row.zone);
+      const { error: e2 } = await supabase.from("thermostats")
+        .update({ guest_max_setpoint: row.guest_max_setpoint }).eq("zone", row.zone);
       if (e2) throw new Error(e2.message);
     }
     if (typeof lockAll === "boolean") {
-      const { error: e3 } = await supabase
-        .from("thermostats")
-        .update({ locked: lockAll })
-        .eq("zone", row.zone);
+      const { error: e3 } = await supabase.from("thermostats")
+        .update({ locked: lockAll }).eq("zone", row.zone);
       if (e3) throw new Error(e3.message);
     }
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: existing ? "zone.update" : "zone.create",
+      entity_type: "zone", entity_id: row.zone, details: { ...row, applyToAll, lockAll },
+    });
     return { ok: true };
   });
 
@@ -271,8 +284,13 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("delete_zone_default", { _id: data.id });
+    const { supabase, userId, claims } = context;
+    await requireAdmin(supabase, userId);
+    const { error } = await supabase.rpc("delete_zone_default", { _id: data.id });
     if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "zone.delete", entity_type: "zone", entity_id: data.id,
+    });
     return { ok: true };
   });
 
@@ -353,9 +371,14 @@ export const allocateThermostat = createServerFn({ method: "POST" })
     }).parse,
   )
   .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    await requireAdmin(supabase, userId);
     const { id, ...patch } = data;
-    const { error } = await context.supabase.from("thermostats").update(patch).eq("id", id);
+    const { error } = await supabase.from("thermostats").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.allocate", entity_type: "thermostat", entity_id: id, details: patch,
+    });
     return { ok: true };
   });
 
@@ -363,10 +386,12 @@ export const unallocateThermostat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }).parse)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("thermostats")
-      .update({ apartment_id: null })
-      .eq("id", data.id);
+    const { supabase, userId, claims } = context;
+    await requireAdmin(supabase, userId);
+    const { error } = await supabase.from("thermostats").update({ apartment_id: null }).eq("id", data.id);
     if (error) throw new Error(error.message);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.unallocate", entity_type: "thermostat", entity_id: data.id,
+    });
     return { ok: true };
   });

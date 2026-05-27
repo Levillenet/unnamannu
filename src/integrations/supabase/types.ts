@@ -52,6 +52,39 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: number
+          ts: string
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: number
+          ts?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: number
+          ts?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       buildings: {
         Row: {
           address: string | null
@@ -72,6 +105,30 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
           updated_at?: string
         }
         Relationships: []
@@ -341,6 +398,7 @@ export type Database = {
     Functions: {
       delete_zone_default: { Args: { _id: string }; Returns: undefined }
       enforce_pending_overrides: { Args: never; Returns: number }
+      has_any_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -348,9 +406,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "manager" | "resident"
+      app_role: "manager" | "resident" | "admin" | "user"
       thermostat_status: "online" | "offline" | "alarm"
     }
     CompositeTypes: {
@@ -479,7 +538,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["manager", "resident"],
+      app_role: ["manager", "resident", "admin", "user"],
       thermostat_status: ["online", "offline", "alarm"],
     },
   },
