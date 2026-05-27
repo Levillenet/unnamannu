@@ -1,38 +1,73 @@
-## Vastaukset kysymyksiisi
+## Tavoite
 
-**Onko rajapinnassa lukitus?** Kyllä. Termostaatti-taulussa on jo `locked`-kenttä (boolean), jota käytetään jo yksittäisen termostaatin näkymässä ("Lukko – estä asiakkaan säätö kokonaan"). Ebeco-rajapinta tukee samaa: laite pidetään kiinteässä asetusarvossa eikä asiakas pääse säätämään näytöltä. Tässä mallinnamme sen `locked = true` -tilana.
+Manageri painaa "Synkronoi Ebecosta" → järjestelmä hakee Ebeco-tilin laitteet → uudet laitteet ilmestyvät **Allokoimattomat termostaatit** -listalle → manageri allokoi jokaisen huoneistoon, antaa nimen ("Makuuhuone", "Kylpyhuone" jne.) ja zonen (huone/kylpyhuone). Tässä vaiheessa Ebeco-haku on mock — oikea API-kutsu kytketään myöhemmin samaan funktioon.
 
-**Yksittäisen ylärajan nosto vs. vyöhykepäivitys:** Kyllä, kun "Sovella ylärajaa kaikkiin" painetaan, se ylikirjoittaa kaikkien vyöhykkeen termostaattien `guest_max_setpoint`-arvon. Yksittäisen termostaatin korotus on siis kertaluonteinen. Tämä on jo nykyinen toimintatapa — selvennetään se vain UI:ssa.
+## Tietomalli (pienet muutokset)
 
-**Miten termostaatti kuuluu vyöhykkeeseen?** Jokaisella termostaatilla on `zone`-kenttä (`room` tai `bathroom`). Tällä hetkellä se asetetaan vain seedissä. Lisätään termostaatin asetuksiin pudotusvalikko, josta vyöhykkeen voi vaihtaa.
+- `thermostats.apartment_id` muutetaan **nullable** → allokoimaton laite voi olla tietokannassa ilman huoneistoa.
+- `thermostats.ebeco_device_id` saa **unique-constraintin** → estää saman laitteen tuonnin kahdesti.
+- `thermostats.name` täytetään aluksi Ebecon antamalla nimellä (esim. "EB-12345"), manageri muokkaa sen kuvaavaksi allokoidessa.
+- Ei erillistä `rooms`-taulua — `name` riittää (käyttäjän vahvistama valinta).
 
-## Mitä rakennetaan
+## Backend — uudet server-funktiot (src/lib/data.functions.ts)
 
-### 1. Vyöhykeasetuksiin (`/zones`) uudet toiminnot
+1. **`syncEbecoDevices`** (mock toistaiseksi)
+   - Palauttaa listan "Ebeco-laitteita": `[{ ebeco_device_id, ebeco_name, online }, ...]`
+   - Generoi muutaman uuden ID:n jokaisella kutsulla + sisällyttää olemassa olevat tietokannan laitteet
+   - Tekee upsertin `thermostats`-tauluun: uudet laitteet luodaan `apartment_id = NULL`, `name = ebeco_name`, `zone = 'room'` oletuksena
+   - Päivittää `last_seen_at` ja `status` olemassa oleville
+2. **`listUnallocatedThermostats`** — palauttaa termostaatit joilla `apartment_id IS NULL`
+3. **`allocateThermostat({ id, apartment_id, name, zone })`** — asettaa allokoinnin yhdellä kutsulla
+4. **`unallocateThermostat({ id })`** — vapauttaa termostaatin takaisin allokoimattomien listalle (säilyttää historian)
 
-Jokainen vyöhykekortti (Huoneet / Kylpyhuoneet) saa:
-- **Lukko-kytkin**: "Lukitse kaikki vyöhykkeen termostaatit" — kun päällä, kaikki vyöhykkeen termostaatit menevät `locked = true` -tilaan (asiakas ei pääse säätämään).
-- **Pakota asetusarvo kaikkiin**: numerokenttä + painike "Aseta kaikkiin (esim. 18 °C)". Kirjoittaa `current_setpoint`-arvon koko vyöhykkeelle. Hyödyllinen esim. tyhjien huoneiden energiansäästöön.
-- Säilytetään olemassa olevat "Tallenna oletukset" ja "Sovella ylärajaa kaikkiin".
+## UI
 
-UI lisää myös selittävän rivin: *"Yksittäiselle termostaatille tehdyt ylärajan muutokset ylikirjoittuvat, jos vyöhykkeen yläraja sovelletaan uudelleen kaikkiin."*
+### Uusi sivu: `/devices` (sivupalkkiin "Laitteet")
 
-### 2. Termostaatin asetussivulle vyöhykkeen valinta
+```text
+┌──────────────────────────────────────────────────────────┐
+│ Laitteet                       [ Synkronoi Ebecosta ↻ ]  │
+├──────────────────────────────────────────────────────────┤
+│ Allokoimattomat (3)                                      │
+│                                                          │
+│ • EB-48201   online                                      │
+│   Huoneisto: [Valitse ▾]  Nimi: [_______]                │
+│   Vyöhyke: ( ) Huone  ( ) Kylpyhuone     [ Allokoi ]     │
+│                                                          │
+│ • EB-48202   online    ...                               │
+├──────────────────────────────────────────────────────────┤
+│ Allokoidut (24)                                          │
+│   EB-12001 → Huoneisto 1 / "Makuuhuone" (huone)  [Muokk.]│
+│   ...                                                    │
+└──────────────────────────────────────────────────────────┘
+```
 
-Termostaattikorttiin (`/thermostats/$id`) lisätään uusi rivi:
-- **Vyöhyke**: pudotusvalikko (Huone / Kylpyhuone). Muuttaa `thermostats.zone`-kenttää.
-- Vaihdon jälkeen termostaatti seuraa uuden vyöhykkeen oletuksia seuraavalla "sovella kaikkiin" -toiminnolla.
+- Synkka-nappi: kutsuu `syncEbecoDevices`, näyttää toastin "X uutta laitetta löytyi".
+- Allokoimattomat-lista: jokaisella rivillä Select huoneistolle, Input nimelle, RadioGroup vyöhykkeelle, **Allokoi**-nappi.
+- Allokoidut-lista: nykyiset termostaatit huoneistoittain ryhmiteltynä, jokaisella **Vapauta** + **Muokkaa**-toiminnot.
 
-### 3. Palvelinfunktiot
+### Pieni lisäys: huoneistokortti
+- Huoneiston laajennetussa rivissä (`_authenticated.apartments.tsx`) lisätään pieni **"+ Lisää termostaatti"** -linkki, joka avaa allokointidialogin allokoimattomien listalta.
 
-- `updateThermostat`: lisää `zone`-kentän hyväksyttyihin syötteisiin.
-- `saveZoneDefault`: lisää valinnaiset parametrit
-  - `lockAll: boolean` → päivittää `locked = true/false` kaikille vyöhykkeen termostaateille
-  - `applySetpointToAll: number` → asettaa kaikkien `current_setpoint`-arvon annettuun
-  - Säilytetään olemassa oleva `applyToAll` ylärajalle.
+### Termostaatin asetussivu (`_authenticated.thermostats.$id.tsx`)
+- Lisätään **Vapauta laite** -nappi (palauttaa allokoimattomien listalle).
+- Apartment-Select, jolla termostaatti voidaan siirtää toiseen huoneistoon.
 
-### Tekninen tiivistys
+## Mock-data muutokset
 
-- Tietokantamuutoksia ei tarvita — `locked`, `zone`, `current_setpoint` ovat jo olemassa.
-- `enforce_guest_max`-trigger huolehtii edelleen siitä, että asetusarvo ei ylitä ylärajaa.
-- Termostaatin korotus toimii edelleen vain niin pitkään kuin uusi vyöhykepäivitys ei ylikirjoita sitä — sama tallennusmekaniikka kuin nyt.
+`src/lib/seed.functions.ts` — lisää siemenvaiheessa 2–3 "Ebeco-laitetta" jotka jäävät allokoimattomiksi (esimerkkidata että UI ei ole tyhjä).
+
+## Migraatio
+
+```sql
+ALTER TABLE public.thermostats ALTER COLUMN apartment_id DROP NOT NULL;
+CREATE UNIQUE INDEX thermostats_ebeco_device_id_key
+  ON public.thermostats (ebeco_device_id)
+  WHERE ebeco_device_id IS NOT NULL;
+```
+
+## Mikä jää myöhemmäksi
+
+- **Oikea Ebeco API -integraatio**: `syncEbecoDevices` korvataan oikealla fetch-kutsulla Ebeco Connect API:in (tunnukset `add_secret`-työkalulla, esim. `EBECO_USERNAME`, `EBECO_PASSWORD`). Funktion sopimus pysyy samana, joten UI ei muutu.
+- **Bulk-allokointi** (esim. valitse useita kerralla samaan huoneistoon) — voidaan lisätä jos tarpeen.
+- **Nimeämiskäytäntö Ebecossa + automäppäys** — jos myöhemmin haluatte että Ebeco-nimi "A12-Makuuhuone" parsitaan automaattisesti huoneistoon 12, lisätään parseri `syncEbecoDevices`-funktioon.
