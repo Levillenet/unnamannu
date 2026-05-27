@@ -62,11 +62,13 @@ function ThermostatPage() {
   useEffect(() => setGuestMax(Number(t.guest_max_setpoint)), [t.guest_max_setpoint]);
   useEffect(() => setName(t.name), [t.name]);
 
-  const enforcements = data.readings.filter((r: any) => r.event === "guest_max_enforced");
+  const enforcements = data.readings.filter(
+    (r: any) => r.event === "guest_max_enforced" || r.event === "max_hold_expired",
+  );
   const lastEnforced = enforcements.length > 0 ? enforcements[enforcements.length - 1] : null;
 
   const chartData = data.readings
-    .filter((r: any) => r.event !== "guest_max_enforced")
+    .filter((r: any) => !r.event)
     .map((r) => ({
       time: new Date(r.ts as string).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit" }),
       huone: Number(r.room_temp),
