@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedZonesRouteImport } from './routes/_authenticated.zones'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
+import { Route as AuthenticatedMaxExceedancesRouteImport } from './routes/_authenticated.max-exceedances'
 import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
 import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
@@ -63,6 +64,12 @@ const AuthenticatedSchedulesRoute = AuthenticatedSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedMaxExceedancesRoute =
+  AuthenticatedMaxExceedancesRouteImport.update({
+    id: '/max-exceedances',
+    path: '/max-exceedances',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
   id: '/energy',
   path: '/energy',
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
   '/energy': typeof AuthenticatedEnergyRoute
+  '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/zones': typeof AuthenticatedZonesRoute
@@ -120,6 +128,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
   '/energy': typeof AuthenticatedEnergyRoute
+  '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/zones': typeof AuthenticatedZonesRoute
@@ -137,6 +146,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/devices': typeof AuthenticatedDevicesRoute
   '/_authenticated/energy': typeof AuthenticatedEnergyRoute
+  '/_authenticated/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/zones': typeof AuthenticatedZonesRoute
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/devices'
     | '/energy'
+    | '/max-exceedances'
     | '/schedules'
     | '/settings'
     | '/zones'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/devices'
     | '/energy'
+    | '/max-exceedances'
     | '/schedules'
     | '/settings'
     | '/zones'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/devices'
     | '/_authenticated/energy'
+    | '/_authenticated/max-exceedances'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
     | '/_authenticated/zones'
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSchedulesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/max-exceedances': {
+      id: '/_authenticated/max-exceedances'
+      path: '/max-exceedances'
+      fullPath: '/max-exceedances'
+      preLoaderRoute: typeof AuthenticatedMaxExceedancesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/energy': {
       id: '/_authenticated/energy'
       path: '/energy'
@@ -322,6 +342,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDevicesRoute: typeof AuthenticatedDevicesRoute
   AuthenticatedEnergyRoute: typeof AuthenticatedEnergyRoute
+  AuthenticatedMaxExceedancesRoute: typeof AuthenticatedMaxExceedancesRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedZonesRoute: typeof AuthenticatedZonesRoute
@@ -333,6 +354,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDevicesRoute: AuthenticatedDevicesRoute,
   AuthenticatedEnergyRoute: AuthenticatedEnergyRoute,
+  AuthenticatedMaxExceedancesRoute: AuthenticatedMaxExceedancesRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedZonesRoute: AuthenticatedZonesRoute,
