@@ -228,16 +228,37 @@ export async function fetchDevicesDetailed(): Promise<EbecoDevice[]> {
 }
 
 export async function updateDevice(input: { id: number } & EbecoPatch): Promise<void> {
-  // Forward only allowed fields.
-  const body: Record<string, unknown> = { id: input.id };
+  // Ebecon UpdateUserDevice odottaa täyden DTO:n – jos lähetetään pelkkä
+  // delta, palvelin tiputtaa puuttuvat kentät hiljaisesti. Haetaan nykytila
+  // ja yhdistetään patch siihen.
+  let current: EbecoDevice | null = null;
+  try {
+    current = await fetchDeviceById(input.id);
+    if (!current) {
+      const list = await fetchDevices();
+      current = list.find((d) => d.id === input.id) ?? null;
+    }
+  } catch (err) {
+    console.warn(
+      `[ebeco.updateDevice] nykytilaa ei saatu (${input.id}):`,
+      (err as Error).message,
+    );
+  }
+
+  // Pohjaksi nykytilan kaikki kentät, päälle whitelistatut patch-arvot.
+  const base: Record<string, unknown> = current
+    ? { ...(current as unknown as Record<string, unknown>) }
+    : {};
   for (const k of EBECO_PATCH_FIELDS) {
     if (k in input && (input as Record<string, unknown>)[k] !== undefined) {
-      body[k] = (input as Record<string, unknown>)[k];
+      base[k] = (input as Record<string, unknown>)[k];
     }
   }
+  base.id = input.id;
+
   await request<unknown>("/services/app/Devices/UpdateUserDevice", {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: JSON.stringify(base),
   });
 }
 
