@@ -24,14 +24,18 @@ export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   loader: ({ params, context }) => {
     context.queryClient.ensureQueryData(qo(params.id));
     context.queryClient.ensureQueryData(schedulesQO);
+    context.queryClient.ensureQueryData(devicesQO);
   },
   component: ThermostatPage,
 });
 
 function ThermostatPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data } = useSuspenseQuery(qo(id));
   const { data: schedules } = useSuspenseQuery(schedulesQO);
+  const { data: devices } = useSuspenseQuery(devicesQO);
+  const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
   const t = data.thermostat;
   const qc = useQueryClient();
   const update = useServerFn(updateThermostat);
