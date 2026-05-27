@@ -68,9 +68,11 @@ function ApartmentPage() {
         <ChevronLeft className="h-4 w-4" /> Huoneet
       </Link>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Huone {apt.number}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Huoneisto {apt.number}</h1>
         <p className="text-sm text-muted-foreground">
-          {apt.size_m2 ?? "?"} m² · {apt.floor}. krs · {thermostats.length} termostaattia
+          {(apt as any).apartment_type ? `${(apt as any).apartment_type} · ` : ""}
+          {(apt as any).bedrooms != null ? `${(apt as any).bedrooms} mh · ` : ""}
+          {apt.size_m2 ?? "?"} m² · krs {apt.floor} · {thermostats.length} termostaattia
         </p>
       </div>
 
