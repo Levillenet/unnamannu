@@ -1,10 +1,15 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio, Menu, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
+import { enforceThermostatLimits } from "@/lib/enforcement.functions";
+import { syncEbecoDevices } from "@/lib/data.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -13,6 +18,7 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthenticatedLayout,
 });
+
 
 const NAV = [
   { to: "/dashboard", label: "Yleisnäkymä", icon: LayoutDashboard },
