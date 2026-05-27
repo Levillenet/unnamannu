@@ -1,14 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ShieldAlert, Link2Off } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ import { toast } from "sonner";
 const qo = (id: string) =>
   queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
+const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
 
 export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   loader: ({ params, context }) => {
