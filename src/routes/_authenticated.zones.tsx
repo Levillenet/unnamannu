@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Thermometer, Droplet } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Thermometer, Droplet, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -20,7 +22,6 @@ export const Route = createFileRoute("/_authenticated/zones")({
 type Zone = "room" | "bathroom";
 
 function ZoneCard({
-  zone,
   label,
   icon: Icon,
   count,
@@ -28,8 +29,14 @@ function ZoneCard({
   setGuest,
   defaultSp,
   setDefaultSp,
-  onSave,
-  onSaveAll,
+  lockAll,
+  setLockAll,
+  forceSetpoint,
+  setForceSetpoint,
+  onSaveDefaults,
+  onApplyMaxToAll,
+  onApplyLockToAll,
+  onApplySetpointToAll,
   saving,
 }: any) {
   return (
@@ -62,12 +69,53 @@ function ZoneCard({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button variant="outline" onClick={onSave} disabled={saving}>
+          <Button variant="outline" onClick={onSaveDefaults} disabled={saving}>
             Tallenna oletukset
           </Button>
-          <Button onClick={onSaveAll} disabled={saving}>
+          <Button onClick={onApplyMaxToAll} disabled={saving}>
             Sovella ylärajaa kaikkiin ({count})
           </Button>
+        </div>
+
+        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Lukitse kaikki termostaatit</Label>
+              <p className="text-xs text-muted-foreground">Asiakas ei pääse säätämään näytöltä.</p>
+            </div>
+            <Switch checked={lockAll} onCheckedChange={setLockAll} />
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="w-full"
+            onClick={onApplyLockToAll}
+            disabled={saving}
+          >
+            {lockAll ? "Lukitse" : "Vapauta"} kaikki ({count})
+          </Button>
+        </div>
+
+        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+          <Label className="text-sm">Pakota asetusarvo kaikkiin</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={5}
+              max={35}
+              step={0.5}
+              value={forceSetpoint}
+              onChange={(e) => setForceSetpoint(Number(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-sm text-muted-foreground">°C</span>
+            <Button size="sm" className="ml-auto" onClick={onApplySetpointToAll} disabled={saving}>
+              Aseta kaikkiin
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Esim. 18 °C tyhjien huoneiden energiansäästöksi.
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -84,7 +132,11 @@ function ZonesPage() {
       qc.invalidateQueries({ queryKey: ["zone-defaults"] });
       qc.invalidateQueries({ queryKey: ["apartments"] });
       qc.invalidateQueries({ queryKey: ["overview"] });
-      toast.success(vars.data.applyToAll ? "Sovellettu kaikkiin termostaatteihin" : "Tallennettu");
+      const v = vars.data;
+      if (v.applyToAll) toast.success("Yläraja sovellettu kaikkiin");
+      else if (typeof v.lockAll === "boolean") toast.success(v.lockAll ? "Kaikki lukittu" : "Kaikki vapautettu");
+      else if (typeof v.applySetpointToAll === "number") toast.success(`Asetus ${v.applySetpointToAll} °C kaikille`);
+      else toast.success("Tallennettu");
     },
     onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
   });
@@ -94,8 +146,13 @@ function ZonesPage() {
 
   const [roomGuest, setRoomGuest] = useState(Number(find("room")?.guest_max_setpoint ?? 23));
   const [roomDefault, setRoomDefault] = useState(Number(find("room")?.default_setpoint ?? 21));
+  const [roomLock, setRoomLock] = useState(false);
+  const [roomForce, setRoomForce] = useState(18);
+
   const [bathGuest, setBathGuest] = useState(Number(find("bathroom")?.guest_max_setpoint ?? 25));
   const [bathDefault, setBathDefault] = useState(Number(find("bathroom")?.default_setpoint ?? 22));
+  const [bathLock, setBathLock] = useState(false);
+  const [bathForce, setBathForce] = useState(18);
 
   useEffect(() => {
     setRoomGuest(Number(find("room")?.guest_max_setpoint ?? 23));
@@ -107,6 +164,13 @@ function ZonesPage() {
 
   if (!buildingId) return <div className="p-8">Kiinteistöä ei löytynyt.</div>;
 
+  const mkBase = (zone: Zone, guest: number, def: number) => ({
+    building_id: buildingId,
+    zone,
+    guest_max_setpoint: guest,
+    default_setpoint: def,
+  });
+
   return (
     <div className="p-8">
       <div className="mb-6">
@@ -116,9 +180,16 @@ function ZonesPage() {
         </p>
       </div>
 
+      <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Yksittäiselle termostaatille tehdyt muutokset (esim. ylärajan nosto) ovat kertaluonteisia ja
+          ylikirjoittuvat, kun vyöhykkeen toiminto sovelletaan kaikkiin.
+        </span>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <ZoneCard
-          zone="room"
           label="Huoneet"
           icon={Thermometer}
           count={data.counts.room}
@@ -126,32 +197,20 @@ function ZonesPage() {
           setGuest={setRoomGuest}
           defaultSp={roomDefault}
           setDefaultSp={setRoomDefault}
+          lockAll={roomLock}
+          setLockAll={setRoomLock}
+          forceSetpoint={roomForce}
+          setForceSetpoint={setRoomForce}
           saving={m.isPending}
-          onSave={() =>
-            m.mutate({
-              data: {
-                building_id: buildingId,
-                zone: "room",
-                guest_max_setpoint: roomGuest,
-                default_setpoint: roomDefault,
-              },
-            })
-          }
-          onSaveAll={() =>
-            m.mutate({
-              data: {
-                building_id: buildingId,
-                zone: "room",
-                guest_max_setpoint: roomGuest,
-                default_setpoint: roomDefault,
-                applyToAll: true,
-              },
-            })
+          onSaveDefaults={() => m.mutate({ data: mkBase("room", roomGuest, roomDefault) })}
+          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), applyToAll: true } })}
+          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), lockAll: roomLock } })}
+          onApplySetpointToAll={() =>
+            m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), applySetpointToAll: roomForce } })
           }
         />
 
         <ZoneCard
-          zone="bathroom"
           label="Kylpyhuoneet"
           icon={Droplet}
           count={data.counts.bathroom}
@@ -159,27 +218,16 @@ function ZonesPage() {
           setGuest={setBathGuest}
           defaultSp={bathDefault}
           setDefaultSp={setBathDefault}
+          lockAll={bathLock}
+          setLockAll={setBathLock}
+          forceSetpoint={bathForce}
+          setForceSetpoint={setBathForce}
           saving={m.isPending}
-          onSave={() =>
-            m.mutate({
-              data: {
-                building_id: buildingId,
-                zone: "bathroom",
-                guest_max_setpoint: bathGuest,
-                default_setpoint: bathDefault,
-              },
-            })
-          }
-          onSaveAll={() =>
-            m.mutate({
-              data: {
-                building_id: buildingId,
-                zone: "bathroom",
-                guest_max_setpoint: bathGuest,
-                default_setpoint: bathDefault,
-                applyToAll: true,
-              },
-            })
+          onSaveDefaults={() => m.mutate({ data: mkBase("bathroom", bathGuest, bathDefault) })}
+          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), applyToAll: true } })}
+          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), lockAll: bathLock } })}
+          onApplySetpointToAll={() =>
+            m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), applySetpointToAll: bathForce } })
           }
         />
       </div>
