@@ -27,10 +27,9 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
     const enforcedCount = (readings24h ?? []).filter((r) => r.event === "guest_max_enforced").length;
 
     const ts = thermostats ?? [];
-    const roomTs = ts.filter((t) => t.zone === "room");
-    const bathTs = ts.filter((t) => t.zone === "bathroom");
-    const avgZone = (arr: typeof ts) =>
-      arr.length ? arr.reduce((s, t) => s + Number(t.current_setpoint), 0) / arr.length : null;
+    const avgSp = ts.length
+      ? ts.reduce((s, t) => s + Number(t.current_setpoint), 0) / ts.length
+      : null;
 
     return {
       building,
@@ -42,8 +41,7 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       energy24h,
       avgRoomTemp: avgRoom,
       enforcedCount,
-      avgRoomZone: avgZone(roomTs),
-      avgBathZone: avgZone(bathTs),
+      avgSetpoint: avgSp,
     };
   });
 
