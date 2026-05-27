@@ -22,6 +22,7 @@ export type Database = {
           created_at: string
           floor: string | null
           id: string
+          notes: string | null
           number: string
           size_m2: number | null
           updated_at: string
@@ -33,6 +34,7 @@ export type Database = {
           created_at?: string
           floor?: string | null
           id?: string
+          notes?: string | null
           number: string
           size_m2?: number | null
           updated_at?: string
@@ -44,6 +46,7 @@ export type Database = {
           created_at?: string
           floor?: string | null
           id?: string
+          notes?: string | null
           number?: string
           size_m2?: number | null
           updated_at?: string
