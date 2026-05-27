@@ -557,8 +557,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           floor_temp: pickFloorTemp(d),
         });
       } else {
-        const { data: ins, error } = await supabase
-          .from("thermostats")
+        const { data: ins, error } = await (supabase.from("thermostats") as any)
           .insert({
             ebeco_device_id: ebecoId,
             name: d.displayName ?? `EB-${ebecoId}`,
@@ -572,6 +571,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           })
           .select("id")
           .single();
+
         if (error) throw new Error(error.message);
         if (!ins?.id) continue;
         created += 1;
