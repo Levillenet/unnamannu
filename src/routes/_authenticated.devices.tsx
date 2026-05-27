@@ -214,6 +214,7 @@ function DevicesPage() {
                   key={d.id}
                   device={d}
                   apartments={data.apartments as any[]}
+                  zones={zoneOptions}
                   saving={allocM.isPending}
                   onAllocate={(payload) => allocM.mutate({ data: payload })}
                 />
