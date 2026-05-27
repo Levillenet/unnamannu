@@ -63,9 +63,10 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 px-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center justify-center gap-2 text-primary">
-          <Flame className="h-7 w-7" />
-          <span className="text-2xl font-semibold tracking-tight">Ebeco-hallinta</span>
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <img src={logo} alt="Levi Suites" className="h-14 w-auto object-contain" />
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Unna&amp;Mannu</span>
+          <span className="text-sm text-muted-foreground">Levi Suites · Lattialämmityksen hallinta</span>
         </div>
         <Card>
           <CardHeader>
