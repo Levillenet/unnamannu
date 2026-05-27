@@ -317,7 +317,7 @@ function NewZoneDialog({
             <Slider min={0} max={1440} step={60} value={[hold]} onValueChange={(v) => setHold(v[0])} />
           </div>
           <div>
-            <Label>Palautusviive ylirajan jälkeen (min)</Label>
+            <Label>Palautusviive maksimiasetuksen jälkeen (min)</Label>
             <Input
               type="number"
               min={0}
