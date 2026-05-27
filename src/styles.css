@@ -81,13 +81,13 @@
   --chart-3: oklch(0.65 0.1 200);
   --chart-4: oklch(0.7 0.12 160);
   --chart-5: oklch(0.55 0.15 300);
-  --sidebar: oklch(0.28 0.05 250);                /* navy sidebar */
-  --sidebar-foreground: oklch(0.95 0.015 90);
+  --sidebar: oklch(0.92 0.025 232);               /* light arctic blue */
+  --sidebar-foreground: oklch(0.25 0.045 250);
   --sidebar-primary: oklch(0.78 0.12 80);         /* gold active */
   --sidebar-primary-foreground: oklch(0.22 0.04 250);
-  --sidebar-accent: oklch(0.34 0.05 250);
-  --sidebar-accent-foreground: oklch(0.98 0.01 90);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-accent: oklch(0.97 0.01 90);
+  --sidebar-accent-foreground: oklch(0.25 0.045 250);
+  --sidebar-border: oklch(0.82 0.025 232);
   --sidebar-ring: oklch(0.78 0.12 80);
 }
 
