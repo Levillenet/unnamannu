@@ -837,3 +837,51 @@ export const broadcastThermostatSetting = createServerFn({ method: "POST" })
     return { total: ids.length, ...result };
   });
 
+
+// Sync a single thermostat's full settings from Ebeco into the local row.
+export const syncEbecoDevice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+
+    const { data: row, error: rowErr } = await supabase
+      .from("thermostats")
+      .select("id,ebeco_device_id")
+      .eq("id", data.id)
+      .single();
+    if (rowErr) throw new Error(rowErr.message);
+    if (!row?.ebeco_device_id) throw new Error("Termostaatilta puuttuu Ebeco-ID");
+
+    const detail = await fetchDeviceById(Number(row.ebeco_device_id));
+    if (!detail) throw new Error("Ebecosta ei saatu vastausta tälle laitteelle");
+
+    const ebecoCols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
+    const nowIso = new Date().toISOString();
+    const status: "online" | "offline" = detail.online === false ? "offline" : "online";
+    const setpoint = typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
+
+    const patch: Record<string, unknown> = {
+      last_seen_at: nowIso,
+      status,
+      ebeco_settings: detail as unknown as Record<string, unknown>,
+      ...ebecoCols,
+    };
+    if (setpoint != null) patch.current_setpoint = setpoint;
+
+    const { error } = await (supabase.from("thermostats") as any)
+      .update(patch)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "ebeco.sync.device",
+      entity_type: "thermostat",
+      entity_id: data.id,
+      details: { ebeco_device_id: row.ebeco_device_id },
+    });
+
+    return { ok: true };
+  });
