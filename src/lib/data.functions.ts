@@ -215,13 +215,13 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const { supabase } = context;
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
-      supabase.from("zone_defaults").select("*"),
-      supabase.from("thermostats").select("id,zone,guest_max_setpoint,current_setpoint"),
+      supabase.from("zone_defaults").select("*").order("label"),
+      supabase.from("thermostats").select("id,zone"),
     ]);
-    const counts = {
-      room: (thermostats ?? []).filter((t) => t.zone === "room").length,
-      bathroom: (thermostats ?? []).filter((t) => t.zone === "bathroom").length,
-    };
+    const counts: Record<string, number> = {};
+    for (const t of thermostats ?? []) {
+      counts[t.zone] = (counts[t.zone] ?? 0) + 1;
+    }
     return { building, defaults: defaults ?? [], counts };
   });
 
@@ -230,18 +230,17 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       building_id: z.string().uuid(),
-      zone: z.enum(["room", "bathroom"]),
+      zone: z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/),
+      label: z.string().min(1).max(60),
       guest_max_setpoint: z.number().min(5).max(35),
-      default_setpoint: z.number().min(5).max(35),
       override_grace_minutes: z.number().int().min(0).max(120),
       applyToAll: z.boolean().optional(),
       lockAll: z.boolean().optional(),
-      applySetpointToAll: z.number().min(5).max(35).optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { applyToAll, lockAll, applySetpointToAll, ...row } = data;
+    const { applyToAll, lockAll, ...row } = data;
     const { error } = await supabase
       .from("zone_defaults")
       .upsert(row, { onConflict: "building_id,zone" });
@@ -261,13 +260,15 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
         .eq("zone", row.zone);
       if (e3) throw new Error(e3.message);
     }
-    if (typeof applySetpointToAll === "number") {
-      const { error: e4 } = await supabase
-        .from("thermostats")
-        .update({ current_setpoint: applySetpointToAll })
-        .eq("zone", row.zone);
-      if (e4) throw new Error(e4.message);
-    }
+    return { ok: true };
+  });
+
+export const deleteZoneDefault = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("delete_zone_default", { _id: data.id });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
