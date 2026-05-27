@@ -16,27 +16,33 @@ export type Database = {
     Tables: {
       apartments: {
         Row: {
+          apartment_type: string | null
+          bedrooms: number | null
           building_id: string
           created_at: string
-          floor: number | null
+          floor: string | null
           id: string
           number: string
           size_m2: number | null
           updated_at: string
         }
         Insert: {
+          apartment_type?: string | null
+          bedrooms?: number | null
           building_id: string
           created_at?: string
-          floor?: number | null
+          floor?: string | null
           id?: string
           number: string
           size_m2?: number | null
           updated_at?: string
         }
         Update: {
+          apartment_type?: string | null
+          bedrooms?: number | null
           building_id?: string
           created_at?: string
-          floor?: number | null
+          floor?: string | null
           id?: string
           number?: string
           size_m2?: number | null
