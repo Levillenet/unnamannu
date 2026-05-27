@@ -38,12 +38,16 @@ function SyncDeviceButton({ id }: { id: string }) {
   const sync = useServerFn(syncEbecoDevice);
   const m = useMutation({
     mutationFn: () => sync({ data: { id } }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      if (res?.ok === false) {
+        toast.error(res.message ?? "Synkronointi epäonnistui");
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["thermostat", id] });
       qc.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Asetukset päivitetty Ebecosta");
+      toast.success(res?.message ?? "Asetukset päivitetty Ebecosta");
     },
-    onError: (e: any) => toast.error(e.message ?? "Synkronointi epäonnistui"),
+    onError: (e: any) => toast.error(e?.message ?? "Synkronointi epäonnistui"),
   });
   return (
     <Button size="sm" variant="outline" disabled={m.isPending} onClick={() => m.mutate()}>
