@@ -40,10 +40,22 @@ function ThermostatPage() {
   const { data: schedules } = useSuspenseQuery(schedulesQO);
   const { data: devices } = useSuspenseQuery(devicesQO);
   const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
+  const allDevices = (devices.thermostats as any[]) ?? [];
+  const building = (devices as any).building as { id: string; name: string } | null;
   const t = data.thermostat;
   const { data: zonesData } = useSuspenseQuery(zonesQO);
   const zoneOptions = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
+  const zoneLabel = zoneOptions.find((z) => z.zone === t.zone)?.label ?? t.zone;
+  const counts = {
+    all: allDevices.length,
+    zone: allDevices.filter((d) => d.zone === t.zone).length,
+    apartment: t.apartment_id
+      ? allDevices.filter((d) => d.apartment_id === t.apartment_id).length
+      : 0,
+    building: building ? allDevices.length : 0,
+  };
   const qc = useQueryClient();
+
   const update = useServerFn(updateThermostat);
   const m = useMutation({
     mutationFn: update,
