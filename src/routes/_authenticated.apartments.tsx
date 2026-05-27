@@ -168,6 +168,7 @@ function ApartmentsPage() {
                 <TableHead>Kerros</TableHead>
                 <TableHead>Termostaatit</TableHead>
                 <TableHead>Huone / Kylpyhuone</TableHead>
+                <TableHead>Mitattu ka.</TableHead>
                 <TableHead>Keskiasetus</TableHead>
                 <TableHead>Tila</TableHead>
                 <TableHead className="w-10" />
