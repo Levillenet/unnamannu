@@ -234,6 +234,8 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       label: z.string().min(1).max(60),
       guest_max_setpoint: z.number().min(5).max(35),
       override_grace_minutes: z.number().int().min(0).max(120),
+      default_setpoint: z.number().min(5).max(35),
+      max_hold_minutes: z.number().int().min(0).max(1440),
       applyToAll: z.boolean().optional(),
       lockAll: z.boolean().optional(),
     }).parse,
