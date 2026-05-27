@@ -185,24 +185,10 @@ function ZoneCard({
           </p>
         </div>
 
-        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Lukitse kaikki termostaatit</Label>
-              <p className="text-xs text-muted-foreground">Asiakas ei pääse säätämään näytöltä.</p>
-            </div>
-            <Switch checked={lock} onCheckedChange={setLock} />
-          </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="w-full"
-            onClick={() => onLockToggle(lock)}
-            disabled={saving || count === 0}
-          >
-            {lock ? "Lukitse" : "Vapauta"} kaikki ({count})
-          </Button>
-        </div>
+        {/* Lapsilukko-ominaisuus piilotettu: Ebecon julkinen API ei tue
+            childLockin etäohjausta, joten asetus ei aiemmin oikeasti
+            mennyt laitteelle. Käyttäjä voi tarvittaessa lukita
+            termostaatin paikallisesti laitteen napeista. */}
 
         <div className="border-t pt-3">
           <Button
