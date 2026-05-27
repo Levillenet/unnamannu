@@ -63,16 +63,14 @@ function slugify(s: string) {
 function ZoneCard({
   row,
   count,
-  onSave,
-  onApplyMaxToAll,
+  onSaveAndApply,
   onLockToggle,
   onDelete,
   saving,
 }: {
   row: ZoneRow;
   count: number;
-  onSave: (a: SaveArgs) => void;
-  onApplyMaxToAll: (a: SaveArgs) => void;
+  onSaveAndApply: (a: SaveArgs) => void;
   onLockToggle: (locked: boolean) => void;
   onDelete: () => void;
   saving: boolean;
@@ -91,6 +89,11 @@ function ZoneCard({
   }, [row.guest_max_setpoint, row.override_grace_minutes, row.default_setpoint, row.max_hold_minutes]);
 
   const holdHours = (hold / 60).toFixed(hold % 60 === 0 ? 0 : 1);
+  const dirty =
+    guest !== Number(row.guest_max_setpoint) ||
+    grace !== Number(row.override_grace_minutes) ||
+    def !== Number(row.default_setpoint) ||
+    hold !== Number(row.max_hold_minutes);
 
   return (
     <Card>
@@ -159,13 +162,21 @@ function ZoneCard({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button variant="outline" onClick={() => onSave({ guest, grace, def, hold })} disabled={saving}>
-            Tallenna oletukset
+        <div className="space-y-2 border-t pt-4">
+          {dirty && (
+            <p className="text-xs text-warning">Sinulla on tallentamattomia muutoksia.</p>
+          )}
+          <Button
+            className="w-full"
+            onClick={() => onSaveAndApply({ guest, grace, def, hold })}
+            disabled={saving || !dirty}
+          >
+            {saving ? "Tallennetaan…" : `Tallenna muutokset termostaatteihin (${count})`}
           </Button>
-          <Button onClick={() => onApplyMaxToAll({ guest, grace, def, hold })} disabled={saving || count === 0}>
-            Sovella ylärajaa kaikkiin ({count})
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            Tallentaa oletukset ja päivittää saman vyöhykkeen termostaattien ylärajan ja
+            oletuslämpötilan.
+          </p>
         </div>
 
         <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
