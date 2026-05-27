@@ -1,14 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ShieldAlert, Link2Off } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -16,19 +18,24 @@ import { toast } from "sonner";
 const qo = (id: string) =>
   queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
+const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
 
 export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   loader: ({ params, context }) => {
     context.queryClient.ensureQueryData(qo(params.id));
     context.queryClient.ensureQueryData(schedulesQO);
+    context.queryClient.ensureQueryData(devicesQO);
   },
   component: ThermostatPage,
 });
 
 function ThermostatPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data } = useSuspenseQuery(qo(id));
   const { data: schedules } = useSuspenseQuery(schedulesQO);
+  const { data: devices } = useSuspenseQuery(devicesQO);
+  const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
   const t = data.thermostat;
   const qc = useQueryClient();
   const update = useServerFn(updateThermostat);
@@ -38,6 +45,7 @@ function ThermostatPage() {
       qc.invalidateQueries({ queryKey: ["thermostat", id] });
       qc.invalidateQueries({ queryKey: ["apartments"] });
       qc.invalidateQueries({ queryKey: ["overview"] });
+      qc.invalidateQueries({ queryKey: ["devices"] });
       toast.success("Tallennettu");
     },
     onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
@@ -45,8 +53,10 @@ function ThermostatPage() {
 
   const [setpoint, setSetpoint] = useState(Number(t.current_setpoint));
   const [guestMax, setGuestMax] = useState(Number(t.guest_max_setpoint));
+  const [name, setName] = useState<string>(t.name);
   useEffect(() => setSetpoint(Number(t.current_setpoint)), [t.current_setpoint]);
   useEffect(() => setGuestMax(Number(t.guest_max_setpoint)), [t.guest_max_setpoint]);
+  useEffect(() => setName(t.name), [t.name]);
 
   const enforcements = data.readings.filter((r: any) => r.event === "guest_max_enforced");
   const lastEnforced = enforcements.length > 0 ? enforcements[enforcements.length - 1] : null;
@@ -63,18 +73,28 @@ function ThermostatPage() {
 
   return (
     <div className="p-8">
-      <Link
-        to="/apartments/$id"
-        params={{ id: t.apartment_id }}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="h-4 w-4" /> Takaisin huoneeseen
-      </Link>
+      {t.apartment_id ? (
+        <Link
+          to="/apartments/$id"
+          params={{ id: t.apartment_id }}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" /> Takaisin huoneeseen
+        </Link>
+      ) : (
+        <Link
+          to="/devices"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" /> Takaisin laitteisiin
+        </Link>
+      )}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t.room ?? t.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Huone {(t.apartments as any)?.number} · {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
+            {t.apartment_id ? `Huoneisto ${(t.apartments as any)?.number} · ` : "Allokoimaton · "}
+            {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
           </p>
         </div>
         {t.status === "online" ? (
@@ -202,10 +222,63 @@ function ThermostatPage() {
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+            </Select>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Nimi</Label>
+                <div className="mt-1 flex gap-2">
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!name.trim() || name === t.name}
+                    onClick={() => m.mutate({ data: { id: t.id, name: name.trim() } })}
+                  >
+                    Tallenna
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Huoneisto</Label>
+                <Select
+                  value={t.apartment_id ?? "none"}
+                  onValueChange={(v) =>
+                    m.mutate({ data: { id: t.id, apartment_id: v === "none" ? null : v } })
+                  }
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Allokoimaton" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Allokoimaton</SelectItem>
+                    {apartments.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>Huoneisto {a.number}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {t.apartment_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    m.mutate({ data: { id: t.id, apartment_id: null } });
+                    navigate({ to: "/devices" });
+                  }}
+                >
+                  <Link2Off className="mr-2 h-4 w-4" />
+                  Vapauta laite (palauta allokoimattomiin)
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
+
 
         <Card className="lg:col-span-2">
           <CardHeader>

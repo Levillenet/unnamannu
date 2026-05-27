@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers } from "lucide-react";
+import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/dashboard", label: "Yleisnäkymä", icon: LayoutDashboard },
   { to: "/apartments", label: "Huoneet", icon: Home },
+  { to: "/devices", label: "Laitteet", icon: Radio },
   { to: "/zones", label: "Vyöhykkeet", icon: Layers },
   { to: "/schedules", label: "Aikataulut", icon: Calendar },
   { to: "/energy", label: "Energia", icon: BarChart3 },

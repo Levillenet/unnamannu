@@ -195,7 +195,7 @@ export type Database = {
       }
       thermostats: {
         Row: {
-          apartment_id: string
+          apartment_id: string | null
           created_at: string
           current_schedule_id: string | null
           current_setpoint: number
@@ -215,7 +215,7 @@ export type Database = {
           zone: Database["public"]["Enums"]["thermostat_zone"]
         }
         Insert: {
-          apartment_id: string
+          apartment_id?: string | null
           created_at?: string
           current_schedule_id?: string | null
           current_setpoint?: number
@@ -235,7 +235,7 @@ export type Database = {
           zone?: Database["public"]["Enums"]["thermostat_zone"]
         }
         Update: {
-          apartment_id?: string
+          apartment_id?: string | null
           created_at?: string
           current_schedule_id?: string | null
           current_setpoint?: number

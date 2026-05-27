@@ -106,6 +106,8 @@ export const updateThermostat = createServerFn({ method: "POST" })
       enabled: z.boolean().optional(),
       locked: z.boolean().optional(),
       zone: z.enum(["room", "bathroom"]).optional(),
+      name: z.string().min(1).max(100).optional(),
+      apartment_id: z.string().uuid().nullable().optional(),
       current_schedule_id: z.string().uuid().nullable().optional(),
     }).parse,
   )
@@ -268,5 +270,100 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
         .eq("zone", row.zone);
       if (e4) throw new Error(e4.message);
     }
+    return { ok: true };
+  });
+
+// ---------- DEVICES (Ebeco sync + allocation) ----------
+
+// Mock: simulates pulling the Ebeco account's device list.
+// In production, replace the inside of this handler with a real fetch to the
+// Ebeco Connect API using credentials from process.env. The contract stays the
+// same: each call upserts devices into public.thermostats keyed by ebeco_device_id.
+export const syncEbecoDevices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+
+    // Existing devices we know about
+    const { data: existing } = await supabase
+      .from("thermostats")
+      .select("id,ebeco_device_id");
+    const knownIds = new Set((existing ?? []).map((t) => t.ebeco_device_id).filter(Boolean));
+
+    // Simulate Ebeco returning a few brand-new devices each call
+    const newCount = 1 + Math.floor(Math.random() * 3);
+    const newDevices = Array.from({ length: newCount }, () => {
+      const id = `EB-${40000 + Math.floor(Math.random() * 9999)}`;
+      return {
+        ebeco_device_id: id,
+        name: id,
+        zone: "room" as const,
+        apartment_id: null,
+        status: "online" as const,
+        last_seen_at: new Date().toISOString(),
+      };
+    }).filter((d) => !knownIds.has(d.ebeco_device_id));
+
+    let created = 0;
+    if (newDevices.length > 0) {
+      const { error } = await supabase.from("thermostats").insert(newDevices);
+      if (error) throw new Error(error.message);
+      created = newDevices.length;
+    }
+
+    // Refresh last_seen_at for existing ones (simulate them being reachable)
+    if ((existing ?? []).length > 0) {
+      await supabase
+        .from("thermostats")
+        .update({ last_seen_at: new Date().toISOString() })
+        .not("ebeco_device_id", "is", null);
+    }
+
+    return { created, refreshed: existing?.length ?? 0 };
+  });
+
+export const listDevices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [{ data: thermostats }, { data: apartments }] = await Promise.all([
+      supabase
+        .from("thermostats")
+        .select("id,name,ebeco_device_id,apartment_id,zone,status,last_seen_at,apartments(id,number)")
+        .order("ebeco_device_id"),
+      supabase.from("apartments").select("id,number").order("number"),
+    ]);
+    return {
+      thermostats: thermostats ?? [],
+      apartments: apartments ?? [],
+    };
+  });
+
+export const allocateThermostat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      apartment_id: z.string().uuid(),
+      name: z.string().min(1).max(100),
+      zone: z.enum(["room", "bathroom"]),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("thermostats").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const unallocateThermostat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("thermostats")
+      .update({ apartment_id: null })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
