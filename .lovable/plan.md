@@ -1,25 +1,38 @@
-## Muutokset
+## Vastaukset kysymyksiisi
 
-### 1. Tietomalli (migraatio)
-- Poistetaan `apartments.resident_name` -sarake. Huoneen numero (`number`) on tunniste.
-- `thermostats`-tauluun:
-  - `zone` (enum `bathroom` | `room`) — vyöhyke
-  - `guest_max_setpoint numeric` — asiakkaan yläraja
-- Uusi taulu `zone_defaults` (per `building_id` + `zone`): `guest_max_setpoint`, `default_setpoint`.
-- Trigger `enforce_guest_max` ennen `thermostats`-päivitystä: jos `current_setpoint > guest_max_setpoint`, palautetaan rajaan ja kirjataan `thermostat_readings`-tauluun ylitystapahtuma.
+**Onko rajapinnassa lukitus?** Kyllä. Termostaatti-taulussa on jo `locked`-kenttä (boolean), jota käytetään jo yksittäisen termostaatin näkymässä ("Lukko – estä asiakkaan säätö kokonaan"). Ebeco-rajapinta tukee samaa: laite pidetään kiinteässä asetusarvossa eikä asiakas pääse säätämään näytöltä. Tässä mallinnamme sen `locked = true` -tilana.
 
-### 2. Seed-päivitys
-- 26 hotellihuonetta, 2–4 termostaattia per huone, vyöhykkeet automaattisesti `room`-kentän nimen perusteella (kylpyhuone/wc → bathroom).
-- Oletukset: huone `guest_max = 23 °C`, kylpyhuone `guest_max = 25 °C`.
+**Yksittäisen ylärajan nosto vs. vyöhykepäivitys:** Kyllä, kun "Sovella ylärajaa kaikkiin" painetaan, se ylikirjoittaa kaikkien vyöhykkeen termostaattien `guest_max_setpoint`-arvon. Yksittäisen termostaatin korotus on siis kertaluonteinen. Tämä on jo nykyinen toimintatapa — selvennetään se vain UI:ssa.
 
-### 3. UI
-- **Huoneet-lista** (`/apartments`): poistetaan asukassarake, näytetään huoneen numero, kerros, termostaattien määrä, status.
-- **Huonenäkymä** (`/apartments/$id`): termostaatit ryhmitelty otsikoiden alle "Huone" ja "Kylpyhuone". Per termostaatti: nykyinen lämpö, asetusarvo, asiakkaan yläraja, lukko.
-- **Uusi sivu `/zones`** (Vyöhykeasetukset): kaksi korttia (Huoneet, Kylpyhuoneet). Per kortti: oletus-setpoint, asiakkaan maksimi, painike "Sovella kaikkiin tämän vyöhykkeen termostaatteihin". Sidebariin uusi linkki.
-- **Termostaattinäkymä** (`/thermostats/$id`): erillinen "Asiakkaan yläraja" -slider. Indikaattori jos viimeisin yritys palautettiin rajaan.
-- **Dashboard**: lisätään mittari "Asiakas-ylityksiä 24 h" ja vyöhykekohtainen keskilämpö.
+**Miten termostaatti kuuluu vyöhykkeeseen?** Jokaisella termostaatilla on `zone`-kenttä (`room` tai `bathroom`). Tällä hetkellä se asetetaan vain seedissä. Lisätään termostaatin asetuksiin pudotusvalikko, josta vyöhykkeen voi vaihtaa.
 
-### 4. Sanasto
-Kaikki "Asukas" / "resident" tekstit pois UI:sta. "Apartments" → "Huoneet".
+## Mitä rakennetaan
 
-Toteutan tämän nyt.
+### 1. Vyöhykeasetuksiin (`/zones`) uudet toiminnot
+
+Jokainen vyöhykekortti (Huoneet / Kylpyhuoneet) saa:
+- **Lukko-kytkin**: "Lukitse kaikki vyöhykkeen termostaatit" — kun päällä, kaikki vyöhykkeen termostaatit menevät `locked = true` -tilaan (asiakas ei pääse säätämään).
+- **Pakota asetusarvo kaikkiin**: numerokenttä + painike "Aseta kaikkiin (esim. 18 °C)". Kirjoittaa `current_setpoint`-arvon koko vyöhykkeelle. Hyödyllinen esim. tyhjien huoneiden energiansäästöön.
+- Säilytetään olemassa olevat "Tallenna oletukset" ja "Sovella ylärajaa kaikkiin".
+
+UI lisää myös selittävän rivin: *"Yksittäiselle termostaatille tehdyt ylärajan muutokset ylikirjoittuvat, jos vyöhykkeen yläraja sovelletaan uudelleen kaikkiin."*
+
+### 2. Termostaatin asetussivulle vyöhykkeen valinta
+
+Termostaattikorttiin (`/thermostats/$id`) lisätään uusi rivi:
+- **Vyöhyke**: pudotusvalikko (Huone / Kylpyhuone). Muuttaa `thermostats.zone`-kenttää.
+- Vaihdon jälkeen termostaatti seuraa uuden vyöhykkeen oletuksia seuraavalla "sovella kaikkiin" -toiminnolla.
+
+### 3. Palvelinfunktiot
+
+- `updateThermostat`: lisää `zone`-kentän hyväksyttyihin syötteisiin.
+- `saveZoneDefault`: lisää valinnaiset parametrit
+  - `lockAll: boolean` → päivittää `locked = true/false` kaikille vyöhykkeen termostaateille
+  - `applySetpointToAll: number` → asettaa kaikkien `current_setpoint`-arvon annettuun
+  - Säilytetään olemassa oleva `applyToAll` ylärajalle.
+
+### Tekninen tiivistys
+
+- Tietokantamuutoksia ei tarvita — `locked`, `zone`, `current_setpoint` ovat jo olemassa.
+- `enforce_guest_max`-trigger huolehtii edelleen siitä, että asetusarvo ei ylitä ylärajaa.
+- Termostaatin korotus toimii edelleen vain niin pitkään kuin uusi vyöhykepäivitys ei ylikirjoita sitä — sama tallennusmekaniikka kuin nyt.

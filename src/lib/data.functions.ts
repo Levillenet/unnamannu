@@ -105,6 +105,7 @@ export const updateThermostat = createServerFn({ method: "POST" })
       guest_max_setpoint: z.number().min(5).max(35).optional(),
       enabled: z.boolean().optional(),
       locked: z.boolean().optional(),
+      zone: z.enum(["room", "bathroom"]).optional(),
       current_schedule_id: z.string().uuid().nullable().optional(),
     }).parse,
   )
@@ -233,23 +234,38 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       guest_max_setpoint: z.number().min(5).max(35),
       default_setpoint: z.number().min(5).max(35),
       applyToAll: z.boolean().optional(),
+      lockAll: z.boolean().optional(),
+      applySetpointToAll: z.number().min(5).max(35).optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { applyToAll, ...row } = data;
+    const { applyToAll, lockAll, applySetpointToAll, ...row } = data;
     const { error } = await supabase
       .from("zone_defaults")
       .upsert(row, { onConflict: "building_id,zone" });
     if (error) throw new Error(error.message);
 
     if (applyToAll) {
-      // Update guest_max for all thermostats of this zone
       const { error: e2 } = await supabase
         .from("thermostats")
         .update({ guest_max_setpoint: row.guest_max_setpoint })
         .eq("zone", row.zone);
       if (e2) throw new Error(e2.message);
+    }
+    if (typeof lockAll === "boolean") {
+      const { error: e3 } = await supabase
+        .from("thermostats")
+        .update({ locked: lockAll })
+        .eq("zone", row.zone);
+      if (e3) throw new Error(e3.message);
+    }
+    if (typeof applySetpointToAll === "number") {
+      const { error: e4 } = await supabase
+        .from("thermostats")
+        .update({ current_setpoint: applySetpointToAll })
+        .eq("zone", row.zone);
+      if (e4) throw new Error(e4.message);
     }
     return { ok: true };
   });
