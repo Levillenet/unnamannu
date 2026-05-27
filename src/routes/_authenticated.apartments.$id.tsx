@@ -1,9 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { getApartment } from "@/lib/data.functions";
+import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getApartment, updateApartment } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Thermometer, Droplet, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronLeft, Thermometer, Droplet, Lock, NotebookPen, Cpu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const qo = (id: string) =>
   queryOptions({ queryKey: ["apartment", id], queryFn: () => getApartment({ data: { id } }) });
@@ -54,6 +58,44 @@ function ThermostatCard({ t }: { t: any }) {
   );
 }
 
+function NotesCard({ id, initial }: { id: string; initial: string }) {
+  const qc = useQueryClient();
+  const [notes, setNotes] = useState(initial ?? "");
+  useEffect(() => setNotes(initial ?? ""), [initial]);
+  const m = useMutation({
+    mutationFn: () => updateApartment({ data: { id, notes: notes.trim() || null } }),
+    onSuccess: () => {
+      toast.success("Muistiinpanot tallennettu");
+      qc.invalidateQueries({ queryKey: ["apartment", id] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
+  });
+  const dirty = (notes ?? "") !== (initial ?? "");
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <NotebookPen className="h-4 w-4 text-primary" />
+          Muistiinpanot
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Esim. asiakkaalle annetut ohjeet, huoltohuomiot, koodit…"
+          rows={6}
+        />
+        <div className="flex justify-end">
+          <Button onClick={() => m.mutate()} disabled={!dirty || m.isPending}>
+            {m.isPending ? "Tallennetaan…" : "Tallenna"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ApartmentPage() {
   const { id } = Route.useParams();
   const { data: apt } = useSuspenseQuery(qo(id));
@@ -76,23 +118,41 @@ function ApartmentPage() {
         </p>
       </div>
 
-      {rooms.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Huone</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {rooms.map((t) => <ThermostatCard key={t.id} t={t} />)}
-          </div>
-        </section>
-      )}
+      <div className="grid gap-6 lg:grid-cols-[1fr,360px]">
+        <div className="space-y-6">
+          {rooms.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Huone</h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {rooms.map((t) => <ThermostatCard key={t.id} t={t} />)}
+              </div>
+            </section>
+          )}
 
-      {baths.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kylpyhuone</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {baths.map((t) => <ThermostatCard key={t.id} t={t} />)}
-          </div>
-        </section>
-      )}
+          {baths.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kylpyhuone</h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {baths.map((t) => <ThermostatCard key={t.id} t={t} />)}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Muut laitteet</h2>
+            <Card>
+              <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
+                <Cpu className="h-5 w-5 text-muted-foreground" />
+                Ei vielä muita kiinteistöautomaation laitteita allokoituna tähän huoneistoon.
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <NotesCard id={apt.id} initial={(apt as any).notes ?? ""} />
+        </aside>
+      </div>
     </div>
   );
 }
