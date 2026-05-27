@@ -71,6 +71,7 @@ function ThermostatPage() {
 
   const [setpoint, setSetpoint] = useState(Number(t.current_setpoint));
   const [guestMax, setGuestMax] = useState(Number(t.guest_max_setpoint));
+  const [syncMaxToDevice, setSyncMaxToDevice] = useState(true);
   const [name, setName] = useState<string>(t.name);
   useEffect(() => setSetpoint(Number(t.current_setpoint)), [t.current_setpoint]);
   useEffect(() => setGuestMax(Number(t.guest_max_setpoint)), [t.guest_max_setpoint]);
