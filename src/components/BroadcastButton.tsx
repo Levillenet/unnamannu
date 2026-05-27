@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { broadcastThermostatSetting } from "@/lib/data.functions";
-import type { EbecoPatch } from "@/lib/ebeco-settings-meta";
 
 export type EbecoPatch = Record<string, unknown>;
+
 
 export type BroadcastScope =
   | { kind: "all" }
