@@ -37,7 +37,16 @@ type ZoneRow = {
   label: string;
   guest_max_setpoint: number;
   override_grace_minutes: number;
+  default_setpoint: number;
+  max_hold_minutes: number;
   building_id: string;
+};
+
+type SaveArgs = {
+  guest: number;
+  grace: number;
+  def: number;
+  hold: number;
 };
 
 function slugify(s: string) {
@@ -61,20 +70,26 @@ function ZoneCard({
 }: {
   row: ZoneRow;
   count: number;
-  onSave: (guest: number, grace: number) => void;
-  onApplyMaxToAll: (guest: number, grace: number) => void;
+  onSave: (a: SaveArgs) => void;
+  onApplyMaxToAll: (a: SaveArgs) => void;
   onLockToggle: (locked: boolean) => void;
   onDelete: () => void;
   saving: boolean;
 }) {
   const [guest, setGuest] = useState(Number(row.guest_max_setpoint));
   const [grace, setGrace] = useState(Number(row.override_grace_minutes));
+  const [def, setDef] = useState(Number(row.default_setpoint));
+  const [hold, setHold] = useState(Number(row.max_hold_minutes));
   const [lock, setLock] = useState(false);
 
   useEffect(() => {
     setGuest(Number(row.guest_max_setpoint));
     setGrace(Number(row.override_grace_minutes));
-  }, [row.guest_max_setpoint, row.override_grace_minutes]);
+    setDef(Number(row.default_setpoint));
+    setHold(Number(row.max_hold_minutes));
+  }, [row.guest_max_setpoint, row.override_grace_minutes, row.default_setpoint, row.max_hold_minutes]);
+
+  const holdHours = (hold / 60).toFixed(hold % 60 === 0 ? 0 : 1);
 
   return (
     <Card>
@@ -91,11 +106,36 @@ function ZoneCard({
       <CardContent className="space-y-6">
         <div>
           <div className="mb-2 flex items-baseline justify-between">
+            <Label>Oletuslämpötila</Label>
+            <span className="text-2xl font-semibold text-primary">{def.toFixed(1)} °C</span>
+          </div>
+          <Slider min={5} max={35} step={0.5} value={[def]} onValueChange={(v) => setDef(v[0])} />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Lämpötila johon termostaatti palautuu max-pidon päätyttyä.
+          </p>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-baseline justify-between">
             <Label>Asiakkaan yläraja (max-lämpötila)</Label>
             <span className="text-2xl font-semibold text-warning">{guest.toFixed(1)} °C</span>
           </div>
           <Slider min={5} max={35} step={0.5} value={[guest]} onValueChange={(v) => setGuest(v[0])} />
           <p className="mt-1 text-xs text-muted-foreground">Asiakas voi nostaa enintään tähän arvoon.</p>
+        </div>
+
+        <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+          <div className="flex items-baseline justify-between">
+            <Label className="text-sm">Max-pitoaika</Label>
+            <span className="text-base font-semibold text-primary">
+              {hold === 0 ? "ei käytössä" : `${holdHours} h`}
+            </span>
+          </div>
+          <Slider min={0} max={1440} step={60} value={[hold]} onValueChange={(v) => setHold(v[0])} />
+          <p className="text-xs text-muted-foreground">
+            Kun termostaatti on saavuttanut max-arvon, se palautuu oletuslämpötilaan tämän ajan kuluttua.
+            0 = ei automaattipalautusta (termostaatti jää max-arvoon).
+          </p>
         </div>
 
         <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
@@ -119,10 +159,10 @@ function ZoneCard({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button variant="outline" onClick={() => onSave(guest, grace)} disabled={saving}>
+          <Button variant="outline" onClick={() => onSave({ guest, grace, def, hold })} disabled={saving}>
             Tallenna oletukset
           </Button>
-          <Button onClick={() => onApplyMaxToAll(guest, grace)} disabled={saving || count === 0}>
+          <Button onClick={() => onApplyMaxToAll({ guest, grace, def, hold })} disabled={saving || count === 0}>
             Sovella ylärajaa kaikkiin ({count})
           </Button>
         </div>
@@ -165,12 +205,17 @@ function ZoneCard({
 }
 
 function NewZoneDialog({
-  buildingId,
   onCreate,
   saving,
 }: {
-  buildingId: string;
-  onCreate: (data: { zone: string; label: string; guest_max_setpoint: number; override_grace_minutes: number }) => void;
+  onCreate: (data: {
+    zone: string;
+    label: string;
+    guest_max_setpoint: number;
+    override_grace_minutes: number;
+    default_setpoint: number;
+    max_hold_minutes: number;
+  }) => void;
   saving: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -178,6 +223,8 @@ function NewZoneDialog({
   const [zone, setZone] = useState("");
   const [guest, setGuest] = useState(23);
   const [grace, setGrace] = useState(2);
+  const [def, setDef] = useState(21);
+  const [hold, setHold] = useState(360);
   const [autoSlug, setAutoSlug] = useState(true);
 
   const onLabelChange = (v: string) => {
@@ -190,14 +237,25 @@ function NewZoneDialog({
       toast.error("Anna näyttönimi ja tunniste");
       return;
     }
-    onCreate({ zone, label: label.trim(), guest_max_setpoint: guest, override_grace_minutes: grace });
+    onCreate({
+      zone,
+      label: label.trim(),
+      guest_max_setpoint: guest,
+      override_grace_minutes: grace,
+      default_setpoint: def,
+      max_hold_minutes: hold,
+    });
     setOpen(false);
     setLabel("");
     setZone("");
     setGuest(23);
     setGrace(2);
+    setDef(21);
+    setHold(360);
     setAutoSlug(true);
   };
+
+  const holdHours = (hold / 60).toFixed(hold % 60 === 0 ? 0 : 1);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -232,18 +290,34 @@ function NewZoneDialog({
               }}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Vain kirjaimet a–z, numerot, väliviiva ja alaviiva. Käytetään tunnistamiseen.
+              Vain kirjaimet a–z, numerot, väliviiva ja alaviiva.
             </p>
+          </div>
+          <div>
+            <div className="mb-2 flex items-baseline justify-between">
+              <Label>Oletuslämpötila</Label>
+              <span className="text-lg font-semibold text-primary">{def.toFixed(1)} °C</span>
+            </div>
+            <Slider min={5} max={35} step={0.5} value={[def]} onValueChange={(v) => setDef(v[0])} />
           </div>
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <Label>Asiakkaan yläraja</Label>
               <span className="text-lg font-semibold text-warning">{guest.toFixed(1)} °C</span>
             </div>
-            <Slider min={5} max={45} step={0.5} value={[guest]} onValueChange={(v) => setGuest(v[0])} />
+            <Slider min={5} max={35} step={0.5} value={[guest]} onValueChange={(v) => setGuest(v[0])} />
           </div>
           <div>
-            <Label>Palautusviive (min)</Label>
+            <div className="mb-2 flex items-baseline justify-between">
+              <Label>Max-pitoaika</Label>
+              <span className="text-base font-semibold text-primary">
+                {hold === 0 ? "ei käytössä" : `${holdHours} h`}
+              </span>
+            </div>
+            <Slider min={0} max={1440} step={60} value={[hold]} onValueChange={(v) => setHold(v[0])} />
+          </div>
+          <div>
+            <Label>Palautusviive ylirajan jälkeen (min)</Label>
             <Input
               type="number"
               min={0}
@@ -299,17 +373,26 @@ function ZonesPage() {
 
   const zones = data.defaults as ZoneRow[];
 
+  const baseFor = (z: ZoneRow) => ({
+    building_id: buildingId,
+    zone: z.zone,
+    label: z.label,
+    guest_max_setpoint: Number(z.guest_max_setpoint),
+    override_grace_minutes: Number(z.override_grace_minutes),
+    default_setpoint: Number(z.default_setpoint),
+    max_hold_minutes: Number(z.max_hold_minutes),
+  });
+
   return (
     <div className="p-8">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Vyöhykeasetukset</h1>
           <p className="text-sm text-muted-foreground">
-            Aseta asiakkaan yläraja ja palautusviive vyöhykekohtaisesti. Lisää uusia vyöhykkeitä tarpeen mukaan.
+            Aseta oletuslämpötila, yläraja, max-pitoaika ja palautusviive vyöhykekohtaisesti.
           </p>
         </div>
         <NewZoneDialog
-          buildingId={buildingId}
           saving={saveM.isPending}
           onCreate={(d) => saveM.mutate({ data: { building_id: buildingId, ...d } })}
         />
@@ -318,8 +401,8 @@ function ZonesPage() {
       <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
-          Yksittäiselle termostaatille tehdyt muutokset (esim. ylärajan nosto) ovat kertaluonteisia ja
-          ylikirjoittuvat, kun vyöhykkeen toiminto sovelletaan kaikkiin.
+          Kun asiakas nostaa termostaatin max-arvoon, käynnistyy max-pitoaika. Sen päätyttyä lämpötila
+          palautuu automaattisesti vyöhykkeen oletuslämpötilaan — termostaatti ei jää max-arvoon.
         </span>
       </div>
 
@@ -335,40 +418,31 @@ function ZonesPage() {
               row={z}
               count={data.counts[z.zone] ?? 0}
               saving={saveM.isPending}
-              onSave={(guest, grace) =>
+              onSave={(a) =>
                 saveM.mutate({
                   data: {
-                    building_id: buildingId,
-                    zone: z.zone,
-                    label: z.label,
-                    guest_max_setpoint: guest,
-                    override_grace_minutes: grace,
+                    ...baseFor(z),
+                    guest_max_setpoint: a.guest,
+                    override_grace_minutes: a.grace,
+                    default_setpoint: a.def,
+                    max_hold_minutes: a.hold,
                   },
                 })
               }
-              onApplyMaxToAll={(guest, grace) =>
+              onApplyMaxToAll={(a) =>
                 saveM.mutate({
                   data: {
-                    building_id: buildingId,
-                    zone: z.zone,
-                    label: z.label,
-                    guest_max_setpoint: guest,
-                    override_grace_minutes: grace,
+                    ...baseFor(z),
+                    guest_max_setpoint: a.guest,
+                    override_grace_minutes: a.grace,
+                    default_setpoint: a.def,
+                    max_hold_minutes: a.hold,
                     applyToAll: true,
                   },
                 })
               }
               onLockToggle={(locked) =>
-                saveM.mutate({
-                  data: {
-                    building_id: buildingId,
-                    zone: z.zone,
-                    label: z.label,
-                    guest_max_setpoint: Number(z.guest_max_setpoint),
-                    override_grace_minutes: Number(z.override_grace_minutes),
-                    lockAll: locked,
-                  },
-                })
+                saveM.mutate({ data: { ...baseFor(z), lockAll: locked } })
               }
               onDelete={() => {
                 if (confirm(`Poistetaanko vyöhyke "${z.label}"?`)) delM.mutate({ data: { id: z.id } });
