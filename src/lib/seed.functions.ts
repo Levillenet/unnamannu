@@ -68,14 +68,15 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     .select();
   if (ae) throw new Error(ae.message);
 
-  // Thermostats: 1 bedroom + maybe livingroom + bathroom
+  // Thermostats: every room has Makuuhuone, Olohuone, Eteinen, Kylpyhuone + occasional WC
   const thermostatRows: any[] = [];
   for (const apt of apartments!) {
     const layout = [
       ROOM_ZONES[0], // Makuuhuone
-      ...(Math.random() < 0.4 ? [ROOM_ZONES[1]] : []), // Olohuone
+      ROOM_ZONES[1], // Olohuone
+      ROOM_ZONES[2], // Eteinen
       ROOM_ZONES[3], // Kylpyhuone
-      ...(Math.random() < 0.15 ? [ROOM_ZONES[4]] : []), // WC
+      ...(Math.random() < 0.35 ? [ROOM_ZONES[4]] : []), // WC
     ];
     for (let i = 0; i < layout.length; i++) {
       const rz = layout[i];
