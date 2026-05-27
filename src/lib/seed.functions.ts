@@ -59,7 +59,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
   const apartmentRows = Array.from({ length: 26 }, (_, i) => ({
     building_id: building.id,
     number: `${Math.floor(i / 10) + 1}${String(i % 10).padStart(2, "0")}`,
-    floor: Math.floor(i / 10) + 1,
+    floor: String(Math.floor(i / 10) + 1),
     size_m2: Math.round(rand(22, 38)),
   }));
   const { data: apartments, error: ae } = await supabaseAdmin

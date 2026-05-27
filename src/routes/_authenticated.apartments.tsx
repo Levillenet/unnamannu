@@ -1,13 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listApartments, updateThermostat } from "@/lib/data.functions";
+import { listApartments, updateThermostat, createApartment } from "@/lib/data.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink, Lock } from "lucide-react";
 import { useState, Fragment } from "react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/use-current-role";
 
 const qo = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
 
@@ -15,6 +21,71 @@ export const Route = createFileRoute("/_authenticated/apartments")({
   loader: ({ context }) => context.queryClient.ensureQueryData(qo),
   component: ApartmentsPage,
 });
+
+function AddApartmentDialog() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ number: "", floor: "", apartment_type: "", bedrooms: "", size_m2: "" });
+  const m = useMutation({
+    mutationFn: () => createApartment({ data: {
+      number: form.number.trim(),
+      floor: form.floor.trim(),
+      apartment_type: form.apartment_type.trim() || null,
+      bedrooms: form.bedrooms === "" ? null : Number(form.bedrooms),
+      size_m2: form.size_m2 === "" ? null : Number(form.size_m2),
+    } }),
+    onSuccess: () => {
+      toast.success("Huoneisto lisätty");
+      qc.invalidateQueries({ queryKey: ["apartments"] });
+      setForm({ number: "", floor: "", apartment_type: "", bedrooms: "", size_m2: "" });
+      setOpen(false);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Lisäys epäonnistui"),
+  });
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button><Plus className="mr-1 h-4 w-4" /> Lisää huoneisto</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Uusi huoneisto</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="num">Tunnus</Label>
+              <Input id="num" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="esim. D1" />
+            </div>
+            <div>
+              <Label htmlFor="floor">Kerros</Label>
+              <Input id="floor" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} placeholder="esim. 2 tai 2-3" />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="type">Huoneistotyyppi</Label>
+            <Input id="type" value={form.apartment_type} onChange={(e) => setForm({ ...form, apartment_type: e.target.value })} placeholder="esim. 2mh+oh/k+saunaos." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="br">Makuuhuoneita</Label>
+              <Input id="br" type="number" min={0} value={form.bedrooms} onChange={(e) => setForm({ ...form, bedrooms: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="sz">Pinta-ala (m²)</Label>
+              <Input id="sz" type="number" step="0.5" min={0} value={form.size_m2} onChange={(e) => setForm({ ...form, size_m2: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Peruuta</Button>
+          <Button onClick={() => m.mutate()} disabled={m.isPending || !form.number || !form.floor}>
+            {m.isPending ? "Tallennetaan…" : "Tallenna"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function SetpointStepper({ t, onChange, busy }: { t: any; onChange: (v: number) => void; busy: boolean }) {
   const value = Number(t.current_setpoint);
@@ -58,11 +129,15 @@ function ApartmentsPage() {
       return n;
     });
 
+  const isAdmin = useIsAdmin();
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Huoneet</h1>
-        <p className="text-sm text-muted-foreground">{apts.length} hotellihuonetta · klikkaa riviä laajentaaksesi</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Huoneet</h1>
+          <p className="text-sm text-muted-foreground">{apts.length} huoneistoa · klikkaa riviä laajentaaksesi</p>
+        </div>
+        {isAdmin && <AddApartmentDialog />}
       </div>
       <Card>
         <CardContent className="p-0">
@@ -97,7 +172,7 @@ function ApartmentsPage() {
                         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
                       <TableCell className="font-medium">{a.number}</TableCell>
-                      <TableCell>{a.floor}. krs</TableCell>
+                      <TableCell>krs {a.floor}</TableCell>
                       <TableCell>{ts.length}</TableCell>
                       <TableCell className="text-muted-foreground">{rooms} · {baths}</TableCell>
                       <TableCell>{avg} °C</TableCell>
