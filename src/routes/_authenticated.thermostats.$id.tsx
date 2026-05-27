@@ -325,19 +325,6 @@ function ThermostatPage() {
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="locked">Lukko (estä asiakkaan säätö kokonaan)</Label>
-                <Switch
-                  id="locked"
-                  checked={t.locked}
-                  onCheckedChange={(v) => m.mutate({ data: { id: t.id, locked: v } })}
-                />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Suositus: pidä päällä lyhytaikaisvuokrauksessa, jolloin termostaatin nuppi ei toimi.
-              </p>
-            </div>
 
             <div>
               <Label>Vyöhyke</Label>

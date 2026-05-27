@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Thermometer, Droplet, Lock, NotebookPen, Cpu } from "lucide-react";
+import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -70,9 +70,8 @@ function ThermostatCard({ t }: { t: any }) {
               </div>
             );
           })()}
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Asiakkaan max {Number(t.guest_max_setpoint).toFixed(1)} °C</span>
-            {t.locked && <Lock className="h-3 w-3" />}
+          <div className="mt-2 text-xs text-muted-foreground">
+            Asiakkaan max {Number(t.guest_max_setpoint).toFixed(1)} °C
           </div>
           {t.schedules && (
             <div className="mt-1 text-xs text-muted-foreground">Ohjelma: {t.schedules.name}</div>
