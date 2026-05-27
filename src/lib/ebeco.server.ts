@@ -197,18 +197,9 @@ export async function updateDevice(input: { id: number } & EbecoPatch): Promise<
   // Ebecon UpdateUserDevice odottaa täyden DTO:n – jos lähetetään pelkkä
   // delta, palvelin tiputtaa puuttuvat kentät hiljaisesti. Haetaan nykytila
   // ja yhdistetään patch siihen.
-  let current: EbecoDevice | null = null;
-  try {
-    current = await fetchDeviceById(input.id);
-    if (!current) {
-      const list = await fetchDevices();
-      current = list.find((d) => d.id === input.id) ?? null;
-    }
-  } catch (err) {
-    console.warn(
-      `[ebeco.updateDevice] nykytilaa ei saatu (${input.id}):`,
-      (err as Error).message,
-    );
+  const current = await fetchDeviceById(input.id);
+  if (!current) {
+    console.warn(`[ebeco.updateDevice] nykytilaa ei saatu (${input.id}), lähetetään pelkkä patch`);
   }
 
   // Pohjaksi nykytilan kaikki kentät, päälle whitelistatut patch-arvot.
