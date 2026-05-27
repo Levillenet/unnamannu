@@ -298,21 +298,18 @@ export const updateThermostat = createServerFn({ method: "POST" })
       name: z.string().min(1).max(100).optional(),
       apartment_id: z.string().uuid().nullable().optional(),
       current_schedule_id: z.string().uuid().nullable().optional(),
-      // When true and guest_max_setpoint is set, also push it to Ebeco as the
-      // hardware maxSetpoint so the device itself blocks higher manual values.
-      sync_guest_max_to_device: z.boolean().optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId, claims } = context;
-    const { id, sync_guest_max_to_device, ...patch } = data;
+    const { id, ...patch } = data;
     const adminOnly = ["apartment_id", "zone", "name"] as const;
     if (adminOnly.some((k) => k in patch)) await requireAdmin(supabase, userId);
 
     const needsEbeco =
       patch.current_setpoint != null ||
       patch.enabled != null ||
-      (sync_guest_max_to_device && patch.guest_max_setpoint != null);
+      patch.guest_max_setpoint != null;
 
     if (needsEbeco) {
       const { data: t } = await supabase
@@ -326,11 +323,12 @@ export const updateThermostat = createServerFn({ method: "POST" })
           id: ebecoId,
           ...(patch.current_setpoint != null ? { temperatureSet: patch.current_setpoint } : {}),
           ...(patch.enabled != null ? { powerOn: patch.enabled } : {}),
-          ...(sync_guest_max_to_device && patch.guest_max_setpoint != null
+          // Asiakkaan yläraja pakotetaan aina myös termostaatin laiterajaksi.
+          ...(patch.guest_max_setpoint != null
             ? { maxSetpoint: patch.guest_max_setpoint }
             : {}),
         });
-        if (sync_guest_max_to_device && patch.guest_max_setpoint != null) {
+        if (patch.guest_max_setpoint != null) {
           (patch as Record<string, unknown>).max_setpoint = patch.guest_max_setpoint;
         }
       }
@@ -339,7 +337,7 @@ export const updateThermostat = createServerFn({ method: "POST" })
     const { error } = await supabase.from("thermostats").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
-      action: "thermostat.update", entity_type: "thermostat", entity_id: id, details: { ...patch, sync_guest_max_to_device },
+      action: "thermostat.update", entity_type: "thermostat", entity_id: id, details: patch,
     });
     return { ok: true };
   });
