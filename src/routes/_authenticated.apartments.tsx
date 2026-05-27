@@ -181,6 +181,10 @@ function ApartmentsPage() {
                 const avg = setpoints.length
                   ? (setpoints.reduce((s, v) => s + v, 0) / setpoints.length).toFixed(1)
                   : "—";
+                const roomTemps = ts.map(pickRoomTemp).filter((v): v is number => v != null);
+                const avgRoom = roomTemps.length
+                  ? (roomTemps.reduce((s, v) => s + v, 0) / roomTemps.length).toFixed(1)
+                  : "—";
                 const rooms = ts.filter((t) => t.zone === "room").length;
                 const baths = ts.filter((t) => t.zone === "bathroom").length;
                 const off = ts.filter((t) => t.status === "offline").length;
@@ -196,6 +200,7 @@ function ApartmentsPage() {
                       <TableCell>krs {a.floor}</TableCell>
                       <TableCell>{ts.length}</TableCell>
                       <TableCell className="text-muted-foreground">{rooms} · {baths}</TableCell>
+                      <TableCell className="text-primary">{avgRoom} °C</TableCell>
                       <TableCell>{avg} °C</TableCell>
                       <TableCell>
                         {al === 0 && off === 0 ? (
