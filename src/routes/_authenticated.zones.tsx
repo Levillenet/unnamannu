@@ -435,8 +435,10 @@ function ZonesPage() {
               key={z.id}
               row={z}
               count={data.counts[z.zone] ?? 0}
+              lockedCount={(data as any).lockedCounts?.[z.zone] ?? 0}
               saving={saveM.isPending}
               onSaveAndApply={(a) =>
+
                 saveM.mutate({
                   data: {
                     ...baseFor(z),
