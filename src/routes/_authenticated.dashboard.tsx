@@ -80,14 +80,9 @@ function DashboardPage() {
           tone={o.enforcedCount > 0 ? "warning" : undefined}
         />
         <StatCard
-          label="Keskiasetus – Huone"
-          value={o.avgRoomZone != null ? `${o.avgRoomZone.toFixed(1)} °C` : "—"}
+          label="Keskiasetus"
+          value={o.avgSetpoint != null ? `${o.avgSetpoint.toFixed(1)} °C` : "—"}
           icon={Thermometer}
-        />
-        <StatCard
-          label="Keskiasetus – Kylpyhuone"
-          value={o.avgBathZone != null ? `${o.avgBathZone.toFixed(1)} °C` : "—"}
-          icon={Droplet}
         />
       </div>
 
