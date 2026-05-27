@@ -29,6 +29,8 @@ function ZoneCard({
   setGuest,
   defaultSp,
   setDefaultSp,
+  graceMin,
+  setGraceMin,
   lockAll,
   setLockAll,
   forceSetpoint,
@@ -66,6 +68,26 @@ function ZoneCard({
             <span className="text-2xl font-semibold">{defaultSp.toFixed(1)} °C</span>
           </div>
           <Slider min={15} max={28} step={0.5} value={[defaultSp]} onValueChange={(v) => setDefaultSp(v[0])} />
+        </div>
+
+        <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
+          <Label className="text-sm">Palautusviive ylirajan jälkeen</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              step={1}
+              value={graceMin}
+              onChange={(e) => setGraceMin(Number(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-sm text-muted-foreground">minuuttia</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Viive jonka termostaatti odottaa asiakkaan tekemän säädön jälkeen, ennen kuin se palauttaa
+            lämpötilan asetettuun maksimiarvoon. 0 = palautus välittömästi.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
