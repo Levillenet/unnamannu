@@ -44,7 +44,7 @@ function EnergyPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Huoneistoittain (kWh)</CardTitle>
+            <CardTitle className="text-base">Huoneittain (kWh)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-72">
