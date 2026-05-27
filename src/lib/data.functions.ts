@@ -66,7 +66,7 @@ export const getMaxExceedances24h = createServerFn({ method: "GET" })
       .order("ts", { ascending: false });
     if (readingsError) throw new Error(readingsError.message);
 
-    const thermostatIds = [...new Set((readings ?? []).map((r) => r.thermostat_id).filter(Boolean))];
+    const thermostatIds = [...new Set((readings ?? []).map((r) => r.thermostat_id).filter((id): id is string => Boolean(id)))];
     if (thermostatIds.length === 0) return { total: 0, rows: [] };
 
     const { data: thermostats, error: thermostatError } = await supabase
@@ -75,7 +75,7 @@ export const getMaxExceedances24h = createServerFn({ method: "GET" })
       .in("id", thermostatIds);
     if (thermostatError) throw new Error(thermostatError.message);
 
-    const apartmentIds = [...new Set((thermostats ?? []).map((t) => t.apartment_id).filter(Boolean))];
+    const apartmentIds = [...new Set((thermostats ?? []).map((t) => t.apartment_id).filter((id): id is string => Boolean(id)))];
     const { data: apartments, error: apartmentError } = apartmentIds.length
       ? await supabase.from("apartments").select("id,number,floor").in("id", apartmentIds)
       : { data: [], error: null };
