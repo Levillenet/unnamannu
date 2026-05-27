@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { seedDemoData } from "@/lib/seed.functions";
-import { diagnoseEbecoChildLock } from "@/lib/ebeco-diagnose.functions";
 import {
   listUsers, inviteUser, updateUserRole, removeUser, listAuditLog, sendPasswordReset,
 } from "@/lib/users.functions";
@@ -39,7 +38,7 @@ function SettingsPage() {
           {isAdmin && <TabsTrigger value="users">Käyttäjät</TabsTrigger>}
           {isAdmin && <TabsTrigger value="audit">Loki</TabsTrigger>}
         </TabsList>
-        <TabsContent value="general" className="pt-4"><GeneralTab />{isAdmin && <div className="mt-4"><EbecoDiagnosticsCard /></div>}</TabsContent>
+        <TabsContent value="general" className="pt-4"><GeneralTab /></TabsContent>
         {isAdmin && <TabsContent value="users" className="pt-4"><UsersTab /></TabsContent>}
         {isAdmin && <TabsContent value="audit" className="pt-4"><AuditTab /></TabsContent>}
       </Tabs>
@@ -191,79 +190,3 @@ function AuditTab() {
   );
 }
 
-function EbecoDiagnosticsCard() {
-  const [id, setId] = useState("94922");
-  const [result, setResult] = useState<any>(null);
-  const run = useServerFn(diagnoseEbecoChildLock);
-  const m = useMutation({
-    mutationFn: (enable: boolean) => run({ data: { id: Number(id), enable } }),
-    onSuccess: (r) => {
-      setResult(r);
-      if (r.success) toast.success(`Lapsilukko muuttui: ${r.success.label}`);
-      else toast.error("Mikään yritys ei muuttanut lapsilukon tilaa");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Cloud className="h-4 w-4 text-primary" /> Ebeco-diagnostiikka: lapsilukko
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
-          Kokeilee useita Ebecon endpointteja ja kirjaa mikä onnistuu muuttamaan childLock-arvon.
-          Tulokset näkyvät myös serverilokeissa (prefix <code>[ebeco-diag]</code>).
-        </p>
-        <div className="flex items-end gap-2">
-          <div>
-            <Label className="text-xs">Ebeco ID</Label>
-            <Input value={id} onChange={(e) => setId(e.target.value)} className="w-32" />
-          </div>
-          <Button size="sm" onClick={() => m.mutate(true)} disabled={m.isPending || !id}>
-            Yritä lukita
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => m.mutate(false)} disabled={m.isPending || !id}>
-            Yritä avata
-          </Button>
-        </div>
-        {result && (
-          <div className="space-y-2 text-xs">
-            <div className="rounded bg-muted p-2">
-              <div>childLock ennen: <code>{result.childLockBefore}</code></div>
-              <div>lock-kentät DTO:ssa: <code className="break-all">{result.lockFieldsSeen}</code></div>
-              {result.success && (
-                <div className="mt-1 font-medium text-primary">
-                  ✓ Onnistui: {result.success.label} ({result.success.method} {result.success.path})
-                </div>
-              )}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead><tr className="border-b text-left text-muted-foreground">
-                  <th className="py-1 pr-2">Yritys</th>
-                  <th className="py-1 pr-2">Status</th>
-                  <th className="py-1 pr-2">childLock jälkeen</th>
-                  <th className="py-1 pr-2">keyLock jälkeen</th>
-                  <th className="py-1 pr-2">Body</th>
-                </tr></thead>
-                <tbody>
-                  {result.attempts.map((a: any, i: number) => (
-                    <tr key={i} className="border-b last:border-0 align-top">
-                      <td className="py-1 pr-2">{a.label}</td>
-                      <td className="py-1 pr-2">{a.status}</td>
-                      <td className="py-1 pr-2"><code>{a.childLockAfter}</code></td>
-                      <td className="py-1 pr-2"><code>{a.keyLockAfter}</code></td>
-                      <td className="py-1 pr-2 max-w-md break-all text-muted-foreground">{a.bodyPreview}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
