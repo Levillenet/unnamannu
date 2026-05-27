@@ -97,7 +97,9 @@ export const applyZoneToThermostats = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId, claims } = context;
     await requireAdmin(supabase, userId);
-    const patch: Record<string, unknown> = { guest_max_setpoint: data.guest_max_setpoint };
+    const patch: { guest_max_setpoint: number; current_setpoint?: number } = {
+      guest_max_setpoint: data.guest_max_setpoint,
+    };
     if (data.applyDefaultSetpoint) patch.current_setpoint = data.default_setpoint;
     const { error, count } = await supabase
       .from("thermostats")
