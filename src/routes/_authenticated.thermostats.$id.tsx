@@ -38,6 +38,15 @@ export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   component: ThermostatPage,
 });
 
+function formatRelative(d: Date): string {
+  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 60) return `${diffSec} s sitten`;
+  if (diffSec < 3600) return `${Math.round(diffSec / 60)} min sitten`;
+  if (diffSec < 86400) return `${Math.round(diffSec / 3600)} h sitten`;
+  return d.toLocaleString("fi-FI");
+}
+
+
 function SyncDeviceButton({ id }: { id: string }) {
   const qc = useQueryClient();
   const sync = useServerFn(syncEbecoDevice);
