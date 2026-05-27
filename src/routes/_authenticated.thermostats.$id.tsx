@@ -194,20 +194,22 @@ function ThermostatPage() {
               <Label>Vyöhyke</Label>
               <Select
                 value={t.zone}
-                onValueChange={(v) => m.mutate({ data: { id: t.id, zone: v as "room" | "bathroom" } })}
+                onValueChange={(v) => m.mutate({ data: { id: t.id, zone: v } })}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="room">Huone</SelectItem>
-                  <SelectItem value="bathroom">Kylpyhuone</SelectItem>
+                  {zoneOptions.map((z) => (
+                    <SelectItem key={z.zone} value={z.zone}>{z.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">
                 Termostaatti seuraa valitun vyöhykkeen oletuksia ja "sovella kaikkiin" -toimintoja.
               </p>
             </div>
+
 
             <div>
               <Label>Aikataulu</Label>
