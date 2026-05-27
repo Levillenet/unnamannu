@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/dashboard", label: "Yleisnäkymä", icon: LayoutDashboard },
   { to: "/apartments", label: "Huoneet", icon: Home },
+  { to: "/devices", label: "Laitteet", icon: Radio },
   { to: "/zones", label: "Vyöhykkeet", icon: Layers },
   { to: "/schedules", label: "Aikataulut", icon: Calendar },
   { to: "/energy", label: "Energia", icon: BarChart3 },
