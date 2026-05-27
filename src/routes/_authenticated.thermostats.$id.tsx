@@ -182,11 +182,36 @@ function ThermostatPage() {
                 step={0.5}
                 value={[guestMax]}
                 onValueChange={(v) => setGuestMax(v[0])}
-                onValueCommit={(v) => m.mutate({ data: { id: t.id, guest_max_setpoint: v[0] } })}
+                onValueCommit={(v) =>
+                  m.mutate({
+                    data: {
+                      id: t.id,
+                      guest_max_setpoint: v[0],
+                      sync_guest_max_to_device: syncMaxToDevice,
+                    },
+                  })
+                }
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Asiakas voi nostaa asetuksen enintään tähän arvoon. Ylitykset palautuvat automaattisesti.
               </p>
+              <div className="mt-3 flex items-center justify-between rounded-md border bg-muted/30 p-2">
+                <div className="text-xs">
+                  <div className="font-medium">Aseta myös termostaatin laiterajaksi</div>
+                  <div className="text-muted-foreground">
+                    Estää asiakasta menemästä yli myös termostaatin omasta näytöstä / Ebeco-sovelluksesta.
+                  </div>
+                </div>
+                <Switch checked={syncMaxToDevice} onCheckedChange={setSyncMaxToDevice} />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Laiteraja Ebecosta: {Number(t.min_setpoint).toFixed(1)} – {Number(t.max_setpoint).toFixed(1)} °C
+                {Number(t.max_setpoint) < guestMax && (
+                  <span className="ml-1 text-warning">
+                    · Vierasraja yli laiterajan – termostaatti rajaa ylityksen.
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
