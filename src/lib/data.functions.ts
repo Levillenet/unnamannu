@@ -516,6 +516,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
           .select("id")
           .single();
         if (error) throw new Error(error.message);
+        if (!ins?.id) continue;
         created += 1;
         readingsToInsert.push({
           thermostat_id: ins.id,
@@ -527,8 +528,23 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
       }
     }
 
-    if (readingsToInsert.length > 0) {
-      await supabase.from("thermostat_readings").insert(readingsToInsert);
+    const validReadings = readingsToInsert.filter((r) => !!r.thermostat_id);
+    if (validReadings.length > 0) {
+      const ids = Array.from(new Set(validReadings.map((r) => r.thermostat_id)));
+      const { data: confirmed } = await supabase
+        .from("thermostats")
+        .select("id")
+        .in("id", ids);
+      const confirmedIds = new Set((confirmed ?? []).map((t) => t.id));
+      const safeReadings = validReadings.filter((r) => confirmedIds.has(r.thermostat_id));
+      if (safeReadings.length > 0) {
+        const { error: readingsError } = await supabase
+          .from("thermostat_readings")
+          .insert(safeReadings);
+        if (readingsError) {
+          console.error("[syncEbecoDevices] readings insert failed:", readingsError.message);
+        }
+      }
     }
 
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
