@@ -208,6 +208,7 @@ export type Database = {
           max_setpoint: number
           min_setpoint: number
           name: string
+          override_started_at: string | null
           room: string | null
           status: Database["public"]["Enums"]["thermostat_status"]
           updated_at: string
@@ -227,6 +228,7 @@ export type Database = {
           max_setpoint?: number
           min_setpoint?: number
           name: string
+          override_started_at?: string | null
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
@@ -246,6 +248,7 @@ export type Database = {
           max_setpoint?: number
           min_setpoint?: number
           name?: string
+          override_started_at?: string | null
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
@@ -296,6 +299,7 @@ export type Database = {
           default_setpoint: number
           guest_max_setpoint: number
           id: string
+          override_grace_minutes: number
           updated_at: string
           zone: Database["public"]["Enums"]["thermostat_zone"]
         }
@@ -305,6 +309,7 @@ export type Database = {
           default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
+          override_grace_minutes?: number
           updated_at?: string
           zone: Database["public"]["Enums"]["thermostat_zone"]
         }
@@ -314,6 +319,7 @@ export type Database = {
           default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
+          override_grace_minutes?: number
           updated_at?: string
           zone?: Database["public"]["Enums"]["thermostat_zone"]
         }
@@ -324,6 +330,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      enforce_pending_overrides: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

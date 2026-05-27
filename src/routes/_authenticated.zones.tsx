@@ -29,6 +29,8 @@ function ZoneCard({
   setGuest,
   defaultSp,
   setDefaultSp,
+  graceMin,
+  setGraceMin,
   lockAll,
   setLockAll,
   forceSetpoint,
@@ -66,6 +68,26 @@ function ZoneCard({
             <span className="text-2xl font-semibold">{defaultSp.toFixed(1)} °C</span>
           </div>
           <Slider min={15} max={28} step={0.5} value={[defaultSp]} onValueChange={(v) => setDefaultSp(v[0])} />
+        </div>
+
+        <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
+          <Label className="text-sm">Palautusviive ylirajan jälkeen</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              max={120}
+              step={1}
+              value={graceMin}
+              onChange={(e) => setGraceMin(Number(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-sm text-muted-foreground">minuuttia</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Viive jonka termostaatti odottaa asiakkaan tekemän säädön jälkeen, ennen kuin se palauttaa
+            lämpötilan asetettuun maksimiarvoon. 0 = palautus välittömästi.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 border-t pt-4">
@@ -146,29 +168,34 @@ function ZonesPage() {
 
   const [roomGuest, setRoomGuest] = useState(Number(find("room")?.guest_max_setpoint ?? 23));
   const [roomDefault, setRoomDefault] = useState(Number(find("room")?.default_setpoint ?? 21));
+  const [roomGrace, setRoomGrace] = useState(Number((find("room") as any)?.override_grace_minutes ?? 2));
   const [roomLock, setRoomLock] = useState(false);
   const [roomForce, setRoomForce] = useState(18);
 
   const [bathGuest, setBathGuest] = useState(Number(find("bathroom")?.guest_max_setpoint ?? 25));
   const [bathDefault, setBathDefault] = useState(Number(find("bathroom")?.default_setpoint ?? 22));
+  const [bathGrace, setBathGrace] = useState(Number((find("bathroom") as any)?.override_grace_minutes ?? 2));
   const [bathLock, setBathLock] = useState(false);
   const [bathForce, setBathForce] = useState(18);
 
   useEffect(() => {
     setRoomGuest(Number(find("room")?.guest_max_setpoint ?? 23));
     setRoomDefault(Number(find("room")?.default_setpoint ?? 21));
+    setRoomGrace(Number((find("room") as any)?.override_grace_minutes ?? 2));
     setBathGuest(Number(find("bathroom")?.guest_max_setpoint ?? 25));
     setBathDefault(Number(find("bathroom")?.default_setpoint ?? 22));
+    setBathGrace(Number((find("bathroom") as any)?.override_grace_minutes ?? 2));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   if (!buildingId) return <div className="p-8">Kiinteistöä ei löytynyt.</div>;
 
-  const mkBase = (zone: Zone, guest: number, def: number) => ({
+  const mkBase = (zone: Zone, guest: number, def: number, grace: number) => ({
     building_id: buildingId,
     zone,
     guest_max_setpoint: guest,
     default_setpoint: def,
+    override_grace_minutes: grace,
   });
 
   return (
@@ -197,16 +224,18 @@ function ZonesPage() {
           setGuest={setRoomGuest}
           defaultSp={roomDefault}
           setDefaultSp={setRoomDefault}
+          graceMin={roomGrace}
+          setGraceMin={setRoomGrace}
           lockAll={roomLock}
           setLockAll={setRoomLock}
           forceSetpoint={roomForce}
           setForceSetpoint={setRoomForce}
           saving={m.isPending}
-          onSaveDefaults={() => m.mutate({ data: mkBase("room", roomGuest, roomDefault) })}
-          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), applyToAll: true } })}
-          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), lockAll: roomLock } })}
+          onSaveDefaults={() => m.mutate({ data: mkBase("room", roomGuest, roomDefault, roomGrace) })}
+          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault, roomGrace), applyToAll: true } })}
+          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault, roomGrace), lockAll: roomLock } })}
           onApplySetpointToAll={() =>
-            m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault), applySetpointToAll: roomForce } })
+            m.mutate({ data: { ...mkBase("room", roomGuest, roomDefault, roomGrace), applySetpointToAll: roomForce } })
           }
         />
 
@@ -218,16 +247,18 @@ function ZonesPage() {
           setGuest={setBathGuest}
           defaultSp={bathDefault}
           setDefaultSp={setBathDefault}
+          graceMin={bathGrace}
+          setGraceMin={setBathGrace}
           lockAll={bathLock}
           setLockAll={setBathLock}
           forceSetpoint={bathForce}
           setForceSetpoint={setBathForce}
           saving={m.isPending}
-          onSaveDefaults={() => m.mutate({ data: mkBase("bathroom", bathGuest, bathDefault) })}
-          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), applyToAll: true } })}
-          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), lockAll: bathLock } })}
+          onSaveDefaults={() => m.mutate({ data: mkBase("bathroom", bathGuest, bathDefault, bathGrace) })}
+          onApplyMaxToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault, bathGrace), applyToAll: true } })}
+          onApplyLockToAll={() => m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault, bathGrace), lockAll: bathLock } })}
           onApplySetpointToAll={() =>
-            m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault), applySetpointToAll: bathForce } })
+            m.mutate({ data: { ...mkBase("bathroom", bathGuest, bathDefault, bathGrace), applySetpointToAll: bathForce } })
           }
         />
       </div>

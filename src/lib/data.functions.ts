@@ -233,6 +233,7 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       zone: z.enum(["room", "bathroom"]),
       guest_max_setpoint: z.number().min(5).max(35),
       default_setpoint: z.number().min(5).max(35),
+      override_grace_minutes: z.number().int().min(0).max(120),
       applyToAll: z.boolean().optional(),
       lockAll: z.boolean().optional(),
       applySetpointToAll: z.number().min(5).max(35).optional(),
