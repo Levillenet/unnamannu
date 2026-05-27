@@ -345,7 +345,7 @@ export const allocateThermostat = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       apartment_id: z.string().uuid(),
       name: z.string().min(1).max(100),
-      zone: z.enum(["room", "bathroom"]),
+      zone: z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/),
     }).parse,
   )
   .handler(async ({ data, context }) => {
