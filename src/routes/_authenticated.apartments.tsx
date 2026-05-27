@@ -17,6 +17,19 @@ import { useIsAdmin } from "@/hooks/use-current-role";
 
 const qo = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
 
+function pickRoomTemp(t: any): number | null {
+  const eb = (t?.ebeco_settings ?? {}) as Record<string, unknown>;
+  if (typeof eb.temperatureRoomDecimals === "number") return eb.temperatureRoomDecimals as number;
+  if (typeof eb.temperatureRoom === "number") return eb.temperatureRoom as number;
+  return null;
+}
+function pickFloorTemp(t: any): number | null {
+  const eb = (t?.ebeco_settings ?? {}) as Record<string, unknown>;
+  if (typeof eb.temperatureFloorDecimals === "number") return eb.temperatureFloorDecimals as number;
+  if (typeof eb.temperatureFloor === "number") return eb.temperatureFloor as number;
+  return null;
+}
+
 export const Route = createFileRoute("/_authenticated/apartments")({
   loader: ({ context }) => context.queryClient.ensureQueryData(qo),
   component: ApartmentsRoute,
