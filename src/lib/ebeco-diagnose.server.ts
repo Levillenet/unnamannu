@@ -214,12 +214,17 @@ export async function runChildLockDiagnostics(id: number, enable: boolean) {
   return {
     id,
     enable,
-    childLockBefore: beforeValue,
-    lockFieldsSeen: lockFields.all,
+    childLockBefore: JSON.stringify(beforeValue ?? null),
+    lockFieldsSeen: JSON.stringify(lockFields.all),
     fieldsKeyCount: Object.keys(before as object).length,
     success: success
       ? { label: success.label, method: success.method, path: success.path }
       : null,
-    attempts: results,
+    attempts: results.map((r) => ({
+      ...r,
+      childLockBefore: JSON.stringify(r.childLockBefore ?? null),
+      childLockAfter: JSON.stringify(r.childLockAfter ?? null),
+      keyLockAfter: JSON.stringify(r.keyLockAfter ?? null),
+    })),
   };
 }
