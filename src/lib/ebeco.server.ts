@@ -180,13 +180,31 @@ export async function fetchDevices(): Promise<EbecoDevice[]> {
 // if the endpoint shape differs.
 export async function fetchDeviceById(id: number): Promise<EbecoDevice | null> {
   try {
-    const json = await request<{ result?: EbecoDevice }>(
+    const json = await request<any>(
       `/services/app/Devices/GetUserDevice?Id=${id}`,
       { method: "GET" },
     );
-    return json.result ?? null;
+    // Hyväksy useampi vastausmuoto
+    if (json && typeof json === "object") {
+      if (json.result && typeof json.result === "object") {
+        if (Array.isArray((json.result as any).items) && (json.result as any).items.length > 0) {
+          return (json.result as any).items[0] as EbecoDevice;
+        }
+        if (typeof (json.result as any).id === "number") {
+          return json.result as EbecoDevice;
+        }
+      }
+      if (typeof (json as any).id === "number") {
+        return json as EbecoDevice;
+      }
+    }
+    console.error(
+      `[ebeco.fetchDeviceById] ${id} odottamaton vastausmuoto:`,
+      JSON.stringify(json).slice(0, 300),
+    );
+    return null;
   } catch (err) {
-    console.warn(`[ebeco.fetchDeviceById] ${id} failed:`, (err as Error).message);
+    console.error(`[ebeco.fetchDeviceById] ${id} epäonnistui:`, (err as Error).message);
     return null;
   }
 }
