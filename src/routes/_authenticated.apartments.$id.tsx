@@ -45,6 +45,31 @@ function ThermostatCard({ t }: { t: any }) {
             <span className="text-3xl font-semibold">{Number(t.current_setpoint).toFixed(1)}</span>
             <span className="text-sm text-muted-foreground">°C asetus</span>
           </div>
+          {(() => {
+            const eb = (t.ebeco_settings ?? {}) as Record<string, unknown>;
+            const room =
+              typeof eb.temperatureRoomDecimals === "number"
+                ? (eb.temperatureRoomDecimals as number)
+                : typeof eb.temperatureRoom === "number"
+                  ? (eb.temperatureRoom as number)
+                  : null;
+            const floor =
+              typeof eb.temperatureFloorDecimals === "number"
+                ? (eb.temperatureFloorDecimals as number)
+                : typeof eb.temperatureFloor === "number"
+                  ? (eb.temperatureFloor as number)
+                  : null;
+            return (
+              <div className="mt-1 text-sm text-primary">
+                Mitattu {room != null ? `${room.toFixed(1)} °C` : "—"}
+                {floor != null && (
+                  <span className="text-muted-foreground">
+                    {" · "}lattia {floor.toFixed(1)} °C
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>Asiakkaan max {Number(t.guest_max_setpoint).toFixed(1)} °C</span>
             {t.locked && <Lock className="h-3 w-3" />}
