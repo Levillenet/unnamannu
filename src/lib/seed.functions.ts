@@ -31,8 +31,8 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
 
   // Zone defaults
   await supabaseAdmin.from("zone_defaults").insert([
-    { building_id: building.id, zone: "room", guest_max_setpoint: 23.0, default_setpoint: 21.0 },
-    { building_id: building.id, zone: "bathroom", guest_max_setpoint: 25.0, default_setpoint: 22.0 },
+    { building_id: building.id, zone: "room", label: "Huone", guest_max_setpoint: 23.0, override_grace_minutes: 2 },
+    { building_id: building.id, zone: "bathroom", label: "Kylpyhuone", guest_max_setpoint: 25.0, override_grace_minutes: 2 },
   ]);
 
   // Schedules
