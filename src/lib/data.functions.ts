@@ -507,7 +507,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
 
-    const devices = await fetchDevices();
+    const devices = await fetchDevicesDetailed();
 
     const { data: existing } = await supabase
       .from("thermostats")
