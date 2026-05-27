@@ -399,22 +399,3 @@ function ThermostatPage() {
   );
 }
 
-function SyncDeviceButton({ id }: { id: string }) {
-  const qc = useQueryClient();
-  const sync = useServerFn(syncEbecoDevice);
-  const m = useMutation({
-    mutationFn: () => sync({ data: { id } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["thermostat", id] });
-      qc.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Asetukset päivitetty Ebecosta");
-    },
-    onError: (e: any) => toast.error(e.message ?? "Synkronointi epäonnistui"),
-  });
-  return (
-    <Button size="sm" variant="outline" disabled={m.isPending} onClick={() => m.mutate()}>
-      <RefreshCw className={`mr-2 h-4 w-4 ${m.isPending ? "animate-spin" : ""}`} />
-      {m.isPending ? "Haetaan…" : "Synkronoi Ebecosta"}
-    </Button>
-  );
-}
