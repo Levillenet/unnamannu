@@ -248,7 +248,7 @@ function DevicesPage() {
                         <span className="font-mono text-xs text-muted-foreground">{t.ebeco_device_id}</span>
                         <span className="font-medium">{t.name}</span>
                         <Badge variant="outline" className="text-xs">
-                          {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"}
+                          {zoneLabelOf(t.zone)}
                         </Badge>
                       </div>
                       <div className="flex gap-2">
