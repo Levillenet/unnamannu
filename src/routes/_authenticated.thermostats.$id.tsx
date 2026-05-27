@@ -19,12 +19,14 @@ const qo = (id: string) =>
   queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
 const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
+const zonesQO = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
 
 export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   loader: ({ params, context }) => {
     context.queryClient.ensureQueryData(qo(params.id));
     context.queryClient.ensureQueryData(schedulesQO);
     context.queryClient.ensureQueryData(devicesQO);
+    context.queryClient.ensureQueryData(zonesQO);
   },
   component: ThermostatPage,
 });
