@@ -1,42 +1,36 @@
-## Tavoite
+## Ongelma
 
-Järjestelmän idea on, että asetukset tehdään **sovelluksessa** ja termostaatilta käyttöä rajoitetaan. Tällä hetkellä:
-- Asiakkaan yläraja on vain "pehmeä" raja (palauttaa arvon jälkikäteen) – ei estä termostaatista.
-- Näyttöasetus, kieli, aikamuoto eivät päivity termostaatille.
-- Aikamuodon nykyinen arvo ei näy UI:ssa.
+1. **Tallenna ei synkronoi takaisin** – kun käyttäjä painaa Tallenna asetusriviltä, kutsumme Ebecoa, mutta emme päivitä paikallista snapshotia. Käyttäjä joutuu painamaan erikseen "Synkronoi Ebecosta" nähdäkseen tilanteen.
+2. **Jaa monelle termostaatille -toiminto** tekee saman virheen – ei päivitä snapshoteja kohdelaitteille.
+3. **Lokeista paljastui:** `GET /services/app/Devices/GetUserDevice?Id=…` ei ole olemassa (Ebeco palauttaa `400: "GetUserDevice" is not valid`). Eli `fetchDeviceById` epäonnistuu aina, ja `updateDevice` joutuu nykyään aina varakeinolle (`fetchDevices`) per kutsu → hidasta.
 
-## Juurisyy (asetusten päivittymättömyys)
+## Ratkaisu
 
-Ebecon `UpdateUserDevice` (ABP-tyylinen REST) odottaa **koko laitteen DTO:n**, ei pelkkää delta-objektia. Tällä hetkellä lähetämme `{ id, displayWhenIdle: "off" }` → Ebeco hyväksyy kutsun mutta tiputtaa kentät, joita ei ole annettu, ja palauttaa muuttumattoman tilan. Siksi termostaatin näytöllä ei tapahdu mitään.
+### 1. `src/lib/ebeco.server.ts`
 
-## Muutokset
+- **Poista** rikkinäinen single-device endpoint -kutsu `fetchDeviceById`-funktiosta. Hae aina tieto `fetchDevices()`-listasta. Pidä funktion julkinen rajapinta samana, jotta `data.functions.ts` toimii muuttumattomana.
+- `updateDevice`: nykyinen logiikka (hae täysi DTO ennen PUT:ia) säilyy, mutta haku menee nyt suoraan `fetchDevices`-listaan.
+- **Lisää** `fetchAndCacheDevice(id)`-helperi: hakee laitteen listalta ja palauttaa sen – käytetään tallennuksen jälkeen snapshotin tuoreutukseen.
 
-### 1. `src/lib/ebeco.server.ts` – lähetä aina täysi DTO
-`updateDevice`: ennen PUT-kutsua hae laitteen nykyinen tila Ebecosta (`fetchDeviceById`, varakeino `fetchDevices`-listasta), yhdistä siihen annetut patch-kentät ja lähetä koko objekti `UpdateUserDevice`-kutsuun. Pidä `EBECO_PATCH_FIELDS`-whitelist sallittujen kenttien suodattimena, mutta lähetä lisäksi muut tunnetut nykyarvot mukana (mm. `displayName`, `temperatureSet`, `minSetpoint`, `maxSetpoint`, `sensor*`, lokit jne.). Jos nykytilaa ei saada haettua, kirjaa varoitus ja yritä silti vanhalla tavalla – ettei mikään mene rikki.
+### 2. `src/lib/data.functions.ts` – `pushPatchToTargets`
 
-### 2. Aina laiteraja päälle – ei enää valintaa
-`src/lib/data.functions.ts` `updateThermostat`:
-- Poista `sync_guest_max_to_device` -käsittely.
-- Aina kun `guest_max_setpoint` muuttuu, lähetä Ebecolle `maxSetpoint = guest_max_setpoint` ja tallenna `max_setpoint`-sarakkeeseen sama arvo.
+Onnistuneen `updateDevice`-kutsun jälkeen jokaiselle laitteelle:
+- Hae tuore tila Ebecosta (yksi `fetchDevices()`-kutsu kierrosta kohden, ei per-laite, tehokkuuden takia).
+- Päivitä `thermostats`-riville sekä `ebeco_settings` (koko JSON) että kaikki `EBECO_TO_COLUMN`-mappaukset annetun patchin sijaan **tuoreesta tilasta**.
+- Aseta `last_seen_at = now()` ja `status` online/offline-arvon mukaan.
 
-`src/routes/_authenticated.thermostats.$id.tsx`:
-- Poista "Aseta myös termostaatin laiterajaksi" -kytkin ja siihen liittyvä `syncMaxToDevice`-tila.
-- Korvaa selittävä teksti: "Tämä arvo asetetaan suoraan termostaatin laiterajaksi – asiakas ei pysty ylittämään sitä termostaatista, Ebeco-sovelluksesta eikä tästä sovelluksesta."
-- Säilytä alarivin "Laiteraja Ebecosta: min – max" info.
+Tämä tarkoittaa että `updateThermostatSettings` (Tallenna) ja `broadcastThermostatSetting` (Jaa monelle) hoitavat synkronoinnin automaattisesti – ei tarvitse erillistä "Synkronoi Ebecosta" -painalkutta.
 
-### 3. Aikamuoto näkyviin
-`src/lib/ebeco-settings-meta.ts`:
-- Pidä `timeFormat` ilman `column`-kenttää (luetaan `ebeco_settings`-snapshotista). Korjautuu kun synkronointi (#1) lähettää oikean DTO:n ja kun "Synkronoi Ebecosta" tuo tuoreen snapshotin.
-- Vaihda `dateFormat`-arvot vastaamaan myös, jos kenttä lisätään tulevaisuudessa.
+### 3. `syncEbecoDevice` säilyy
 
-### 4. Pieni dokumentointi UI:ssa
-Lisää "Lukko (estä asiakkaan säätö kokonaan)" -switchin alle pieni teksti: "Suositus: pidä päällä lyhytaikaisvuokrauksessa, jolloin termostaatin nuppi ei toimi."
+Manuaalinen "Synkronoi Ebecosta" -painike jää – käytetään kun halutaan päivittää näkymä ilman muutoksia (esim. asiakkaan tekemä säätö termostaatilla). Ei muutosta toiminnallisuuteen.
 
-## Mitä EI tehdä tässä vaiheessa
-- Lapsilukon (`childLock`) pakottamista päälle automaattisesti – jätetään ylläpitäjän hallintaan, koska eri kohteissa voi olla eri käytäntö.
-- Migraatioita tietokantaan – kaikki tarvittavat sarakkeet ovat jo olemassa.
+### 4. UI-virhe (`SSR rendering failed` / `Cannot read properties of undefined (reading 'method')`)
+
+Lokeissa näkyy myös erillinen serverFn-virhe. Tarkistetaan että edellisen muutoksen jälkeen `updateThermostat`-skeemasta poistettu `sync_guest_max_to_device`-kenttä ei aiheuta clientillä yhä jossain `data: { ..., sync_guest_max_to_device }` -kutsua, joka kaatuisi serialisointivaiheessa. Käydään `grep`illä läpi ja korjataan jos löytyy.
 
 ## Lopputulos
-- Asiakkaan ylärajaa muutettaessa raja menee aina suoraan termostaatille → asiakas ei pysty ylittämään sitä millään keinolla.
-- Näyttö, kieli, aikamuoto ja muut Ebeco-asetukset päivittyvät oikeasti termostaatille, koska lähetämme täyden DTO:n.
-- Aikamuodon nykyinen arvo näkyy UI:ssa heti synkronoinnin jälkeen.
+
+- Yhdellä tallennuksella sekä termostaatti että näkymä ovat ajan tasalla.
+- Jaa-toiminto tekee saman kaikille kohteille kerralla.
+- Ei enää turhia 400-virheitä Ebecon API:lta.

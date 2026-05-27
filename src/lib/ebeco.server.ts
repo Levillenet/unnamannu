@@ -175,34 +175,12 @@ export async function fetchDevices(): Promise<EbecoDevice[]> {
   return json.result ?? [];
 }
 
-// Fetch a single device with full settings. The ABP-style endpoint is
-// GET /api/services/app/Devices/GetUserDevice?Id={id}. Falls back gracefully
-// if the endpoint shape differs.
+// Ebecon ABP-API:ssa ei ole toimivaa yhden laitteen GET-endpointtia
+// (GetUserDevice palauttaa 400). Haetaan laite aina koko listalta.
 export async function fetchDeviceById(id: number): Promise<EbecoDevice | null> {
   try {
-    const json = await request<any>(
-      `/services/app/Devices/GetUserDevice?Id=${id}`,
-      { method: "GET" },
-    );
-    // Hyväksy useampi vastausmuoto
-    if (json && typeof json === "object") {
-      if (json.result && typeof json.result === "object") {
-        if (Array.isArray((json.result as any).items) && (json.result as any).items.length > 0) {
-          return (json.result as any).items[0] as EbecoDevice;
-        }
-        if (typeof (json.result as any).id === "number") {
-          return json.result as EbecoDevice;
-        }
-      }
-      if (typeof (json as any).id === "number") {
-        return json as EbecoDevice;
-      }
-    }
-    console.error(
-      `[ebeco.fetchDeviceById] ${id} odottamaton vastausmuoto:`,
-      JSON.stringify(json).slice(0, 300),
-    );
-    return null;
+    const list = await fetchDevices();
+    return list.find((d) => d.id === id) ?? null;
   } catch (err) {
     console.error(`[ebeco.fetchDeviceById] ${id} epäonnistui:`, (err as Error).message);
     return null;
@@ -210,39 +188,18 @@ export async function fetchDeviceById(id: number): Promise<EbecoDevice | null> {
 }
 
 export async function fetchDevicesDetailed(): Promise<EbecoDevice[]> {
-  const list = await fetchDevices();
-  // Fetch full settings per device in small concurrent batches.
-  const out: EbecoDevice[] = [];
-  const BATCH = 5;
-  for (let i = 0; i < list.length; i += BATCH) {
-    const slice = list.slice(i, i + BATCH);
-    const results = await Promise.all(
-      slice.map(async (d) => {
-        const detail = await fetchDeviceById(d.id);
-        return detail ? { ...d, ...detail } : d;
-      }),
-    );
-    out.push(...results);
-  }
-  return out;
+  // GetUserDevices palauttaa jo kaikki asetuskentät – ei tarvitse hakea
+  // jokaista laitetta erikseen.
+  return fetchDevices();
 }
 
 export async function updateDevice(input: { id: number } & EbecoPatch): Promise<void> {
   // Ebecon UpdateUserDevice odottaa täyden DTO:n – jos lähetetään pelkkä
   // delta, palvelin tiputtaa puuttuvat kentät hiljaisesti. Haetaan nykytila
   // ja yhdistetään patch siihen.
-  let current: EbecoDevice | null = null;
-  try {
-    current = await fetchDeviceById(input.id);
-    if (!current) {
-      const list = await fetchDevices();
-      current = list.find((d) => d.id === input.id) ?? null;
-    }
-  } catch (err) {
-    console.warn(
-      `[ebeco.updateDevice] nykytilaa ei saatu (${input.id}):`,
-      (err as Error).message,
-    );
+  const current = await fetchDeviceById(input.id);
+  if (!current) {
+    console.warn(`[ebeco.updateDevice] nykytilaa ei saatu (${input.id}), lähetetään pelkkä patch`);
   }
 
   // Pohjaksi nykytilan kaikki kentät, päälle whitelistatut patch-arvot.
