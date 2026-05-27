@@ -129,11 +129,15 @@ function ApartmentsPage() {
       return n;
     });
 
+  const isAdmin = useIsAdmin();
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Huoneet</h1>
-        <p className="text-sm text-muted-foreground">{apts.length} hotellihuonetta · klikkaa riviä laajentaaksesi</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Huoneet</h1>
+          <p className="text-sm text-muted-foreground">{apts.length} huoneistoa · klikkaa riviä laajentaaksesi</p>
+        </div>
+        {isAdmin && <AddApartmentDialog />}
       </div>
       <Card>
         <CardContent className="p-0">
