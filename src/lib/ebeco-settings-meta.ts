@@ -22,6 +22,7 @@ export const SETTING_GROUPS: { id: string; label: string; settings: SettingMeta[
     settings: [
       {
         field: "minSetpoint",
+        column: "min_setpoint",
         label: "Sallittu min",
         type: "number",
         min: 5,
@@ -31,6 +32,7 @@ export const SETTING_GROUPS: { id: string; label: string; settings: SettingMeta[
       },
       {
         field: "maxSetpoint",
+        column: "max_setpoint",
         label: "Sallittu max",
         type: "number",
         min: 5,

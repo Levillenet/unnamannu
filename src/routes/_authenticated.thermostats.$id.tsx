@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults, syncEbecoDevice } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ShieldAlert, Link2Off } from "lucide-react";
+import { ChevronLeft, ShieldAlert, Link2Off, RefreshCw } from "lucide-react";
 import { ThermostatSettingsTabs } from "@/components/ThermostatSettingsTabs";
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
@@ -32,6 +32,26 @@ export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   },
   component: ThermostatPage,
 });
+
+function SyncDeviceButton({ id }: { id: string }) {
+  const qc = useQueryClient();
+  const sync = useServerFn(syncEbecoDevice);
+  const m = useMutation({
+    mutationFn: () => sync({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["thermostat", id] });
+      qc.invalidateQueries({ queryKey: ["devices"] });
+      toast.success("Asetukset päivitetty Ebecosta");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Synkronointi epäonnistui"),
+  });
+  return (
+    <Button size="sm" variant="outline" disabled={m.isPending} onClick={() => m.mutate()}>
+      <RefreshCw className={`mr-2 h-4 w-4 ${m.isPending ? "animate-spin" : ""}`} />
+      {m.isPending ? "Haetaan…" : "Synkronoi Ebecosta"}
+    </Button>
+  );
+}
 
 function ThermostatPage() {
   const { id } = Route.useParams();
@@ -370,11 +390,18 @@ function ThermostatPage() {
 
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
+                  Jos kentät ovat tyhjiä, hae tuoreet arvot Ebecosta alla olevasta napista.
+                </p>
+              </div>
+              <SyncDeviceButton id={t.id} />
+            </div>
           </CardHeader>
+
           <CardContent>
             <ThermostatSettingsTabs
               thermostat={t}
@@ -391,3 +418,4 @@ function ThermostatPage() {
     </div>
   );
 }
+
