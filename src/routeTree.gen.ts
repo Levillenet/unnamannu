@@ -22,6 +22,7 @@ import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authenticated.apartments'
+import { Route as ApiPublicEnforceLimitsRouteImport } from './routes/api/public/enforce-limits'
 import { Route as AuthenticatedThermostatsIdRouteImport } from './routes/_authenticated.thermostats.$id'
 import { Route as AuthenticatedApartmentsIdRouteImport } from './routes/_authenticated.apartments.$id'
 
@@ -90,6 +91,11 @@ const AuthenticatedApartmentsRoute = AuthenticatedApartmentsRouteImport.update({
   path: '/apartments',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicEnforceLimitsRoute = ApiPublicEnforceLimitsRouteImport.update({
+  id: '/api/public/enforce-limits',
+  path: '/api/public/enforce-limits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedThermostatsIdRoute =
   AuthenticatedThermostatsIdRouteImport.update({
     id: '/thermostats/$id',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/zones': typeof AuthenticatedZonesRoute
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
+  '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/zones': typeof AuthenticatedZonesRoute
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
+  '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/_authenticated/zones': typeof AuthenticatedZonesRoute
   '/_authenticated/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/_authenticated/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
+  '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/zones'
     | '/apartments/$id'
     | '/thermostats/$id'
+    | '/api/public/enforce-limits'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/zones'
     | '/apartments/$id'
     | '/thermostats/$id'
+    | '/api/public/enforce-limits'
   id:
     | '__root__'
     | '/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/_authenticated/zones'
     | '/_authenticated/apartments/$id'
     | '/_authenticated/thermostats/$id'
+    | '/api/public/enforce-limits'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetPasswordRoute: typeof SetPasswordRoute
+  ApiPublicEnforceLimitsRoute: typeof ApiPublicEnforceLimitsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApartmentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/enforce-limits': {
+      id: '/api/public/enforce-limits'
+      path: '/api/public/enforce-limits'
+      fullPath: '/api/public/enforce-limits'
+      preLoaderRoute: typeof ApiPublicEnforceLimitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/thermostats/$id': {
       id: '/_authenticated/thermostats/$id'
       path: '/thermostats/$id'
@@ -371,6 +391,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SetPasswordRoute: SetPasswordRoute,
+  ApiPublicEnforceLimitsRoute: ApiPublicEnforceLimitsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
