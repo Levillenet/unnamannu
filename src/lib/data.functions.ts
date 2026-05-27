@@ -1,8 +1,58 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
-import { fetchDevices, updateDevice, pickRoomTemp, pickFloorTemp } from "./ebeco.server";
+import {
+  fetchDevices,
+  updateDevice,
+  pickRoomTemp,
+  pickFloorTemp,
+  EBECO_PATCH_FIELDS,
+  ebecoPatchToColumns,
+  type EbecoPatch,
+} from "./ebeco.server";
 import { z } from "zod";
+
+// Zod schema for any subset of Ebeco-forwardable fields.
+const ebecoPatchSchema = z
+  .object({
+    displayName: z.string().min(1).max(100).optional(),
+    powerOn: z.boolean().optional(),
+    temperatureSet: z.number().min(5).max(35).optional(),
+    minSetpoint: z.number().min(5).max(35).optional(),
+    maxSetpoint: z.number().min(5).max(35).optional(),
+    sensorApplication: z.enum(["floor", "room", "roomAndFloor"]).optional(),
+    sensorType: z.string().min(1).max(20).optional(),
+    minFloorTemp: z.number().min(5).max(40).optional(),
+    maxFloorTemp: z.number().min(5).max(40).optional(),
+    floorTempCutOff: z.number().min(5).max(45).optional(),
+    temperatureCalibrationRoom: z.number().min(-5).max(5).optional(),
+    temperatureCalibrationFloor: z.number().min(-5).max(5).optional(),
+    displayWhenIdle: z
+      .enum(["off", "dateAndTime", "temperature", "temperatureAndTime"])
+      .optional(),
+    lightLedTextWhenIdle: z.number().int().min(0).max(100).optional(),
+    lightLedTextDuringOperation: z.number().int().min(0).max(100).optional(),
+    screenSaverEnabled: z.boolean().optional(),
+    language: z.string().min(1).max(10).optional(),
+    timeFormat: z.string().min(1).max(10).optional(),
+    dateFormat: z.string().min(1).max(20).optional(),
+    childLock: z.boolean().optional(),
+    pinCodeEnabled: z.boolean().optional(),
+    installerLock: z.boolean().optional(),
+    selectedProgram: z.string().min(1).max(20).optional(),
+    awayTemperature: z.number().min(5).max(35).optional(),
+    vacationFrom: z.string().max(40).optional(),
+    vacationTo: z.string().max(40).optional(),
+    vacationTemperature: z.number().min(5).max(35).optional(),
+    installedEffect: z.number().int().min(0).max(10000).optional(),
+    adaptiveStart: z.boolean().optional(),
+    openWindowDetection: z.boolean().optional(),
+    openWindowSensitivity: z.number().int().min(0).max(10).optional(),
+    regulatorMode: z.string().min(1).max(20).optional(),
+    pwmPeriod: z.number().int().min(0).max(120).optional(),
+  })
+  .strict();
+
 
 
 async function requireAdmin(supabase: any, userId: string) {
