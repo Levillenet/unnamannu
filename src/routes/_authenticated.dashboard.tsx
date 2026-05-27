@@ -94,12 +94,12 @@ function DashboardPage() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
-          label="Asiakas-ylityksiä 24 h"
+          label="Maksimiarvon ylitykset 24h"
           value={o.enforcedCount}
-          hint="Asetus palautettu ylärajaan"
+          hint="Huoneistokohtainen lista"
           icon={ShieldAlert}
           tone={o.enforcedCount > 0 ? "warning" : undefined}
-          to="/schedules"
+          to="/max-exceedances"
         />
         <StatCard
           label="Keskiasetus"
