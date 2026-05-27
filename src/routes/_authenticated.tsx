@@ -1,8 +1,9 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers } from "lucide-react";
+import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/levi-suites-logo.png";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
