@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink } from "lucide-react";
 import { useState, Fragment } from "react";
 import { toast } from "sonner";
 import { useIsAdmin } from "@/hooks/use-current-role";
@@ -256,11 +256,6 @@ function ApartmentsPage() {
                                               parts.push(`asiakas-max ${Number(t.guest_max_setpoint).toFixed(1)} °C`);
                                               return parts.join(" · ");
                                             })()}
-                                            {t.locked && (
-                                              <span className="ml-2 inline-flex items-center gap-1">
-                                                <Lock className="h-3 w-3" /> Lukittu
-                                              </span>
-                                            )}
                                           </div>
                                         </div>
                                       </div>
