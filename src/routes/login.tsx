@@ -64,7 +64,7 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-2">
-          <img src={logo} alt="Levi Suites" className="h-14 w-auto object-contain" />
+          <img src={logo} alt="Levi Suites" className="h-32 w-auto object-contain md:h-40" />
           <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Unna&amp;Mannu</span>
           <span className="text-sm text-muted-foreground">Levi Suites · Lattialämmityksen hallinta</span>
         </div>
