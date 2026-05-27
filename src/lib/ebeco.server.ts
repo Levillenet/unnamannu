@@ -234,17 +234,41 @@ export async function updateDevice(input: { id: number } & EbecoPatch): Promise<
   const base: Record<string, unknown> = current
     ? { ...(current as unknown as Record<string, unknown>) }
     : {};
+  const patchKeys: string[] = [];
   for (const k of EBECO_PATCH_FIELDS) {
     if (k in input && (input as Record<string, unknown>)[k] !== undefined) {
       base[k] = (input as Record<string, unknown>)[k];
+      patchKeys.push(k);
     }
   }
   base.id = input.id;
 
-  await request<unknown>("/services/app/Devices/UpdateUserDevice", {
+  console.log(
+    `[ebeco.updateDevice] id=${input.id} patch=${JSON.stringify(
+      patchKeys.reduce((o, k) => ({ ...o, [k]: (input as any)[k] }), {}),
+    )} baseKeys=${Object.keys(base).length} sourceKeys=${current ? Object.keys(current).length : 0}`,
+  );
+
+  const token = await getToken();
+  const res = await fetch(`${API_URL}/services/app/Devices/UpdateUserDevice`, {
     method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
     body: JSON.stringify(base),
   });
+  const text = await res.text().catch(() => "");
+  if (!res.ok) {
+    console.error(
+      `[ebeco.updateDevice] PUT epäonnistui id=${input.id} status=${res.status} body=${text.slice(0, 400)}`,
+    );
+    throw new Error(`Ebeco API virhe ${res.status} UpdateUserDevice: ${text.slice(0, 200)}`);
+  }
+  console.log(
+    `[ebeco.updateDevice] PUT ok id=${input.id} status=${res.status} response=${text.slice(0, 400)}`,
+  );
 }
 
 // Convenience: normalize device into fields we store
