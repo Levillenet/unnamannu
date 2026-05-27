@@ -247,7 +247,15 @@ function ApartmentsPage() {
                                             {t.room ?? t.name ?? "Termostaatti"}
                                           </div>
                                           <div className="text-xs text-muted-foreground">
-                                            Asiakas-max {Number(t.guest_max_setpoint).toFixed(1)} °C
+                                            {(() => {
+                                              const r = pickRoomTemp(t);
+                                              const f = pickFloorTemp(t);
+                                              const parts: string[] = [];
+                                              if (r != null) parts.push(`Mitattu ${r.toFixed(1)} °C`);
+                                              if (f != null) parts.push(`lattia ${f.toFixed(1)} °C`);
+                                              parts.push(`asiakas-max ${Number(t.guest_max_setpoint).toFixed(1)} °C`);
+                                              return parts.join(" · ");
+                                            })()}
                                             {t.locked && (
                                               <span className="ml-2 inline-flex items-center gap-1">
                                                 <Lock className="h-3 w-3" /> Lukittu
