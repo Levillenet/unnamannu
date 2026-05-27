@@ -234,6 +234,25 @@ export const updateThermostat = createServerFn({ method: "POST" })
     const { id, ...patch } = data;
     const adminOnly = ["apartment_id", "zone", "name"] as const;
     if (adminOnly.some((k) => k in patch)) await requireAdmin(supabase, userId);
+
+    // Push setpoint / power changes to Ebeco BEFORE writing the DB so we don't show
+    // a stale optimistic value if the device call fails.
+    if (patch.current_setpoint != null || patch.enabled != null) {
+      const { data: t } = await supabase
+        .from("thermostats")
+        .select("ebeco_device_id")
+        .eq("id", id)
+        .maybeSingle();
+      const ebecoId = t?.ebeco_device_id ? Number(t.ebeco_device_id) : null;
+      if (ebecoId && !Number.isNaN(ebecoId)) {
+        await updateDevice({
+          id: ebecoId,
+          ...(patch.current_setpoint != null ? { temperatureSet: patch.current_setpoint } : {}),
+          ...(patch.enabled != null ? { powerOn: patch.enabled } : {}),
+        });
+      }
+    }
+
     const { error } = await supabase.from("thermostats").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
@@ -241,6 +260,7 @@ export const updateThermostat = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
 
 export const listSchedules = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
