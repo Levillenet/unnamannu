@@ -447,8 +447,8 @@ function ThermostatPage() {
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 8)} />
                   <YAxis tick={{ fontSize: 10 }} domain={[10, 35]} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="huone" stroke="var(--chart-1)" dot={false} name="Huone" />
-                  <Line type="monotone" dataKey="lattia" stroke="var(--chart-4)" dot={false} name="Lattia" />
+                  <Line type="monotone" dataKey="huone" stroke="var(--chart-1)" dot={false} name="Mitattu huone" />
+                  <Line type="monotone" dataKey="lattia" stroke="var(--chart-4)" dot={false} name="Mitattu lattia" />
                   <Line type="monotone" dataKey="asetus" stroke="var(--chart-2)" strokeDasharray="4 4" dot={false} name="Asetus" />
                 </LineChart>
               </ResponsiveContainer>
