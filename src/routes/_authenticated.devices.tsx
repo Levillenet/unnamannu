@@ -3,6 +3,7 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { useServerFn } from "@tanstack/react-start";
 import {
   listDevices,
+  listZoneDefaults,
   syncEbecoDevices,
   allocateThermostat,
   unallocateThermostat,
@@ -13,15 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RefreshCw, Radio, Link2Off } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 const qo = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
+const zonesQo = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
 
 export const Route = createFileRoute("/_authenticated/devices")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(qo),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(qo),
+      context.queryClient.ensureQueryData(zonesQo),
+    ]),
   component: DevicesPage,
 });
 
