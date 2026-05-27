@@ -1,0 +1,1 @@
+UPDATE public.buildings SET name='Unna&Mannu', address='Levi';
