@@ -63,6 +63,7 @@ function slugify(s: string) {
 function ZoneCard({
   row,
   count,
+  lockedCount,
   onSaveAndApply,
   onLockToggle,
   onDelete,
@@ -70,16 +71,21 @@ function ZoneCard({
 }: {
   row: ZoneRow;
   count: number;
+  lockedCount: number;
   onSaveAndApply: (a: SaveArgs) => void;
   onLockToggle: (locked: boolean) => void;
   onDelete: () => void;
   saving: boolean;
 }) {
+  const allLocked = count > 0 && lockedCount === count;
   const [guest, setGuest] = useState(Number(row.guest_max_setpoint));
   const [grace, setGrace] = useState(Number(row.override_grace_minutes));
   const [def, setDef] = useState(Number(row.default_setpoint));
   const [hold, setHold] = useState(Number(row.max_hold_minutes));
-  const [lock, setLock] = useState(false);
+  const [lock, setLock] = useState(allLocked);
+
+  useEffect(() => setLock(allLocked), [allLocked]);
+
 
   useEffect(() => {
     setGuest(Number(row.guest_max_setpoint));
