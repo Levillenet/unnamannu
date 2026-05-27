@@ -341,7 +341,27 @@ function ThermostatPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Ebeco-asetukset</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Tallenna muutos termostaattiin, tai jaa se kerralla muille jakopainikkeesta.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ThermostatSettingsTabs
+              thermostat={t}
+              zoneLabel={zoneLabel}
+              apartmentNumber={(t.apartments as any)?.number}
+              buildingName={building?.name}
+              buildingId={building?.id ?? null}
+              counts={counts}
+            />
+          </CardContent>
+        </Card>
       </div>
+
     </div>
   );
 }
