@@ -1,66 +1,66 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const ROOMS = ["Olohuone", "Keittiö", "Kylpyhuone", "Makuuhuone", "Eteinen"];
-const FIRST_NAMES = ["Anna", "Jukka", "Maija", "Pekka", "Liisa", "Matti", "Sari", "Timo", "Hanna", "Mikko"];
-const LAST_NAMES = ["Virtanen", "Korhonen", "Nieminen", "Mäkinen", "Hämäläinen", "Laine", "Heikkinen", "Koskinen"];
+const ROOM_ZONES = [
+  { room: "Makuuhuone", zone: "room" as const },
+  { room: "Olohuone", zone: "room" as const },
+  { room: "Eteinen", zone: "room" as const },
+  { room: "Kylpyhuone", zone: "bathroom" as const },
+  { room: "WC", zone: "bathroom" as const },
+];
 
 function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
-function pick<T>(arr: T[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
 
 export const seedDemoData = createServerFn({ method: "POST" }).handler(async () => {
-  // Idempotent: clear and recreate
   await supabaseAdmin.from("schedule_assignments").delete().gte("created_at", "1900-01-01");
   await supabaseAdmin.from("thermostat_readings").delete().gte("ts", "1900-01-01");
   await supabaseAdmin.from("thermostats").delete().gte("created_at", "1900-01-01");
   await supabaseAdmin.from("apartments").delete().gte("created_at", "1900-01-01");
+  await supabaseAdmin.from("zone_defaults").delete().gte("created_at", "1900-01-01");
   await supabaseAdmin.from("schedules").delete().gte("created_at", "1900-01-01");
   await supabaseAdmin.from("buildings").delete().gte("created_at", "1900-01-01");
 
-  // Building
   const { data: building, error: be } = await supabaseAdmin
     .from("buildings")
-    .insert({ name: "Kerrostalo Mäntytie 12", address: "Mäntytie 12, 00100 Helsinki" })
+    .insert({ name: "Hotel Mäntytie", address: "Mäntytie 12, 00100 Helsinki" })
     .select()
     .single();
   if (be) throw new Error(be.message);
 
+  // Zone defaults
+  await supabaseAdmin.from("zone_defaults").insert([
+    { building_id: building.id, zone: "room", guest_max_setpoint: 23.0, default_setpoint: 21.0 },
+    { building_id: building.id, zone: "bathroom", guest_max_setpoint: 25.0, default_setpoint: 22.0 },
+  ]);
+
   // Schedules
-  const weekProgram = (day: number, low: number, high: number) =>
-    Array.from({ length: 24 }, (_, h) => ({
-      hour: h,
-      setpoint: h >= 22 || h < 6 ? low : high,
-      day,
-    }));
-  const nightSavingProgram = Array.from({ length: 7 }, (_, d) => weekProgram(d, 18, 21)).flat();
-  const holidayProgram = Array.from({ length: 7 }, (_, d) =>
-    Array.from({ length: 24 }, (_, h) => ({ hour: h, setpoint: 15, day: d })),
-  ).flat();
-  const comfortProgram = Array.from({ length: 7 }, (_, d) =>
-    Array.from({ length: 24 }, (_, h) => ({ hour: h, setpoint: h >= 23 || h < 6 ? 19 : 22, day: d })),
-  ).flat();
+  const mkProgram = (low: number, high: number) =>
+    Array.from({ length: 7 }, (_, d) =>
+      Array.from({ length: 24 }, (_, h) => ({
+        hour: h,
+        setpoint: h >= 22 || h < 6 ? low : high,
+        day: d,
+      })),
+    ).flat();
 
   const { data: schedules, error: se } = await supabaseAdmin
     .from("schedules")
     .insert([
-      { name: "Yöalennus", description: "21°C päivällä, 18°C öisin (22–06)", weekly_program: nightSavingProgram },
-      { name: "Lomatila", description: "15°C jatkuvasti", weekly_program: holidayProgram },
-      { name: "Mukavuus", description: "22°C päivällä, 19°C öisin (23–06)", weekly_program: comfortProgram },
+      { name: "Yöalennus", description: "21°C päivällä, 18°C öisin", weekly_program: mkProgram(18, 21) },
+      { name: "Poissa", description: "16°C jatkuvasti", weekly_program: mkProgram(16, 16) },
+      { name: "Mukavuus", description: "22°C päivällä, 19°C öisin", weekly_program: mkProgram(19, 22) },
     ])
     .select();
   if (se) throw new Error(se.message);
 
-  // 26 apartments, 2-4 thermostats each
+  // 26 hotel rooms
   const apartmentRows = Array.from({ length: 26 }, (_, i) => ({
     building_id: building.id,
-    number: `${Math.floor(i / 4) + 1}${String.fromCharCode(65 + (i % 4))}`,
-    floor: Math.floor(i / 4) + 1,
-    resident_name: `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
-    size_m2: Math.round(rand(45, 95)),
+    number: `${Math.floor(i / 10) + 1}${String(i % 10).padStart(2, "0")}`,
+    floor: Math.floor(i / 10) + 1,
+    size_m2: Math.round(rand(22, 38)),
   }));
   const { data: apartments, error: ae } = await supabaseAdmin
     .from("apartments")
@@ -68,27 +68,33 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     .select();
   if (ae) throw new Error(ae.message);
 
-  // Thermostats
+  // Thermostats: 1 bedroom + maybe livingroom + bathroom
   const thermostatRows: any[] = [];
   for (const apt of apartments!) {
-    const count = 2 + Math.floor(Math.random() * 3); // 2-4
-    const usedRooms = new Set<string>();
-    for (let i = 0; i < count; i++) {
-      let room = pick(ROOMS);
-      while (usedRooms.has(room)) room = pick(ROOMS);
-      usedRooms.add(room);
-      const offline = Math.random() < 0.05;
-      const alarm = !offline && Math.random() < 0.03;
+    const layout = [
+      ROOM_ZONES[0], // Makuuhuone
+      ...(Math.random() < 0.4 ? [ROOM_ZONES[1]] : []), // Olohuone
+      ROOM_ZONES[3], // Kylpyhuone
+      ...(Math.random() < 0.15 ? [ROOM_ZONES[4]] : []), // WC
+    ];
+    for (let i = 0; i < layout.length; i++) {
+      const rz = layout[i];
+      const offline = Math.random() < 0.04;
+      const alarm = !offline && Math.random() < 0.02;
+      const guestMax = rz.zone === "bathroom" ? 25.0 : 23.0;
+      const setpoint = Math.min(guestMax, Number(rand(19, 22).toFixed(1)));
       thermostatRows.push({
         apartment_id: apt.id,
         ebeco_device_id: `EBT500-${apt.number}-${i + 1}`,
-        name: `${room} – ${apt.number}`,
-        room,
+        name: `${rz.room} – ${apt.number}`,
+        room: rz.room,
+        zone: rz.zone,
+        guest_max_setpoint: guestMax,
         status: offline ? "offline" : alarm ? "alarm" : "online",
         enabled: !offline,
         locked: false,
-        current_setpoint: Number(rand(19, 23).toFixed(1)),
-        current_schedule_id: Math.random() < 0.6 ? pick(schedules!).id : null,
+        current_setpoint: setpoint,
+        current_schedule_id: Math.random() < 0.5 ? schedules![Math.floor(Math.random() * schedules!.length)].id : null,
         last_seen_at: offline
           ? new Date(Date.now() - rand(1, 48) * 3600 * 1000).toISOString()
           : new Date().toISOString(),
@@ -101,7 +107,7 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
     .select();
   if (te) throw new Error(te.message);
 
-  // Readings: hourly for last 7 days for each thermostat
+  // 7 days hourly readings
   const now = Date.now();
   const readings: any[] = [];
   for (const t of thermostats!) {
@@ -124,7 +130,19 @@ export const seedDemoData = createServerFn({ method: "POST" }).handler(async () 
       });
     }
   }
-  // Bulk insert in chunks
+  // Add a few guest_max_enforced events in last 24h
+  for (let i = 0; i < 12; i++) {
+    const t = thermostats![Math.floor(Math.random() * thermostats!.length)];
+    readings.push({
+      thermostat_id: t.id,
+      ts: new Date(now - Math.random() * 24 * 3600 * 1000).toISOString(),
+      setpoint: Number(t.guest_max_setpoint),
+      power_w: null,
+      energy_kwh: null,
+      event: "guest_max_enforced",
+    });
+  }
+
   const chunkSize = 1000;
   for (let i = 0; i < readings.length; i += chunkSize) {
     const { error: re } = await supabaseAdmin

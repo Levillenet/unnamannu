@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut } from "lucide-react";
+import { Flame, LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,8 @@ export const Route = createFileRoute("/_authenticated")({
 
 const NAV = [
   { to: "/dashboard", label: "Yleisnäkymä", icon: LayoutDashboard },
-  { to: "/apartments", label: "Huoneistot", icon: Home },
+  { to: "/apartments", label: "Huoneet", icon: Home },
+  { to: "/zones", label: "Vyöhykkeet", icon: Layers },
   { to: "/schedules", label: "Aikataulut", icon: Calendar },
   { to: "/energy", label: "Energia", icon: BarChart3 },
   { to: "/settings", label: "Asetukset", icon: Settings },

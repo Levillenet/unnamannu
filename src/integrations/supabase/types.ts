@@ -21,7 +21,6 @@ export type Database = {
           floor: number | null
           id: string
           number: string
-          resident_name: string | null
           size_m2: number | null
           updated_at: string
         }
@@ -31,7 +30,6 @@ export type Database = {
           floor?: number | null
           id?: string
           number: string
-          resident_name?: string | null
           size_m2?: number | null
           updated_at?: string
         }
@@ -41,7 +39,6 @@ export type Database = {
           floor?: number | null
           id?: string
           number?: string
-          resident_name?: string | null
           size_m2?: number | null
           updated_at?: string
         }
@@ -155,6 +152,7 @@ export type Database = {
       thermostat_readings: {
         Row: {
           energy_kwh: number | null
+          event: string | null
           floor_temp: number | null
           id: number
           power_w: number | null
@@ -165,6 +163,7 @@ export type Database = {
         }
         Insert: {
           energy_kwh?: number | null
+          event?: string | null
           floor_temp?: number | null
           id?: number
           power_w?: number | null
@@ -175,6 +174,7 @@ export type Database = {
         }
         Update: {
           energy_kwh?: number | null
+          event?: string | null
           floor_temp?: number | null
           id?: number
           power_w?: number | null
@@ -201,6 +201,7 @@ export type Database = {
           current_setpoint: number
           ebeco_device_id: string | null
           enabled: boolean
+          guest_max_setpoint: number
           id: string
           last_seen_at: string | null
           locked: boolean
@@ -210,6 +211,7 @@ export type Database = {
           room: string | null
           status: Database["public"]["Enums"]["thermostat_status"]
           updated_at: string
+          zone: Database["public"]["Enums"]["thermostat_zone"]
         }
         Insert: {
           apartment_id: string
@@ -218,6 +220,7 @@ export type Database = {
           current_setpoint?: number
           ebeco_device_id?: string | null
           enabled?: boolean
+          guest_max_setpoint?: number
           id?: string
           last_seen_at?: string | null
           locked?: boolean
@@ -227,6 +230,7 @@ export type Database = {
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
+          zone?: Database["public"]["Enums"]["thermostat_zone"]
         }
         Update: {
           apartment_id?: string
@@ -235,6 +239,7 @@ export type Database = {
           current_setpoint?: number
           ebeco_device_id?: string | null
           enabled?: boolean
+          guest_max_setpoint?: number
           id?: string
           last_seen_at?: string | null
           locked?: boolean
@@ -244,6 +249,7 @@ export type Database = {
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
+          zone?: Database["public"]["Enums"]["thermostat_zone"]
         }
         Relationships: [
           {
@@ -283,6 +289,36 @@ export type Database = {
         }
         Relationships: []
       }
+      zone_defaults: {
+        Row: {
+          building_id: string
+          created_at: string
+          default_setpoint: number
+          guest_max_setpoint: number
+          id: string
+          updated_at: string
+          zone: Database["public"]["Enums"]["thermostat_zone"]
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          default_setpoint?: number
+          guest_max_setpoint?: number
+          id?: string
+          updated_at?: string
+          zone: Database["public"]["Enums"]["thermostat_zone"]
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          default_setpoint?: number
+          guest_max_setpoint?: number
+          id?: string
+          updated_at?: string
+          zone?: Database["public"]["Enums"]["thermostat_zone"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -299,6 +335,7 @@ export type Database = {
     Enums: {
       app_role: "manager" | "resident"
       thermostat_status: "online" | "offline" | "alarm"
+      thermostat_zone: "room" | "bathroom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -428,6 +465,7 @@ export const Constants = {
     Enums: {
       app_role: ["manager", "resident"],
       thermostat_status: ["online", "offline", "alarm"],
+      thermostat_zone: ["room", "bathroom"],
     },
   },
 } as const

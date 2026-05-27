@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getBuildingOverview, listApartments } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Thermometer, Zap, AlertTriangle, WifiOff, Home } from "lucide-react";
+import { Thermometer, Zap, AlertTriangle, WifiOff, Home, ShieldAlert, Droplet } from "lucide-react";
 
 const overviewQO = queryOptions({ queryKey: ["overview"], queryFn: () => getBuildingOverview() });
 const apartmentsQO = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
@@ -47,11 +47,11 @@ function DashboardPage() {
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Yleisnäkymä</h1>
-        <p className="text-sm text-muted-foreground">{o.building?.name ?? "Kiinteistö"}</p>
+        <p className="text-sm text-muted-foreground">{o.building?.name ?? "Hotelli"}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Huoneistoja" value={o.apartmentCount} icon={Home} />
+        <StatCard label="Huoneita" value={o.apartmentCount} icon={Home} />
         <StatCard
           label="Termostaatteja"
           value={o.thermostatCount}
@@ -65,9 +65,29 @@ function DashboardPage() {
           icon={Thermometer}
         />
         <StatCard
-          label="Energia 24h"
+          label="Energia 24 h"
           value={`${o.energy24h.toFixed(1)} kWh`}
           icon={Zap}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <StatCard
+          label="Asiakas-ylityksiä 24 h"
+          value={o.enforcedCount}
+          hint="Asetus palautettu ylärajaan"
+          icon={ShieldAlert}
+          tone={o.enforcedCount > 0 ? "warning" : undefined}
+        />
+        <StatCard
+          label="Keskiasetus – Huone"
+          value={o.avgRoomZone != null ? `${o.avgRoomZone.toFixed(1)} °C` : "—"}
+          icon={Thermometer}
+        />
+        <StatCard
+          label="Keskiasetus – Kylpyhuone"
+          value={o.avgBathZone != null ? `${o.avgBathZone.toFixed(1)} °C` : "—"}
+          icon={Droplet}
         />
       </div>
 
@@ -90,8 +110,8 @@ function DashboardPage() {
                     <li key={a.id}>
                       <Link to="/apartments/$id" params={{ id: a.id }} className="flex items-center justify-between py-2 hover:bg-muted/40 -mx-2 px-2 rounded">
                         <div>
-                          <div className="font-medium">Huoneisto {a.number}</div>
-                          <div className="text-xs text-muted-foreground">{a.resident_name}</div>
+                          <div className="font-medium">Huone {a.number}</div>
+                          <div className="text-xs text-muted-foreground">{a.floor}. krs</div>
                         </div>
                         <div className="flex gap-1.5">
                           {al > 0 && <Badge variant="destructive">{al} hälytys</Badge>}
@@ -116,10 +136,13 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <Link to="/apartments" className="block rounded-md border p-3 hover:bg-muted/40">
-              Selaa kaikki huoneistot →
+              Selaa kaikki huoneet →
+            </Link>
+            <Link to="/zones" className="block rounded-md border p-3 hover:bg-muted/40">
+              Vyöhykeasetukset (huone / kylpyhuone) →
             </Link>
             <Link to="/schedules" className="block rounded-md border p-3 hover:bg-muted/40">
-              Hallitse energiaohjelmia →
+              Hallitse aikatauluja →
             </Link>
             <Link to="/energy" className="block rounded-md border p-3 hover:bg-muted/40">
               Tarkastele energiankulutusta →
