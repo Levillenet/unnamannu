@@ -103,7 +103,7 @@ export const updateThermostat = createServerFn({ method: "POST" })
       guest_max_setpoint: z.number().min(5).max(35).optional(),
       enabled: z.boolean().optional(),
       locked: z.boolean().optional(),
-      zone: z.enum(["room", "bathroom"]).optional(),
+      zone: z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/).optional(),
       name: z.string().min(1).max(100).optional(),
       apartment_id: z.string().uuid().nullable().optional(),
       current_schedule_id: z.string().uuid().nullable().optional(),
