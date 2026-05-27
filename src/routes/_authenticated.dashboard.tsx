@@ -154,17 +154,21 @@ function DashboardPage() {
             <CardTitle className="text-base">Pikanavigointi</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Link to="/apartments" className="block rounded-md border p-3 hover:bg-muted/40">
-              Selaa kaikki huoneet →
+            <Link to="/apartments" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
+              <span>Selaa kaikki huoneet</span>
+              <ArrowRight className="card-arrow h-4 w-4" />
             </Link>
-            <Link to="/zones" className="block rounded-md border p-3 hover:bg-muted/40">
-              Vyöhykeasetukset (huone / kylpyhuone) →
+            <Link to="/zones" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
+              <span>Vyöhykeasetukset (huone / kylpyhuone)</span>
+              <ArrowRight className="card-arrow h-4 w-4" />
             </Link>
-            <Link to="/schedules" className="block rounded-md border p-3 hover:bg-muted/40">
-              Hallitse aikatauluja →
+            <Link to="/schedules" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
+              <span>Hallitse aikatauluja</span>
+              <ArrowRight className="card-arrow h-4 w-4" />
             </Link>
-            <Link to="/energy" className="block rounded-md border p-3 hover:bg-muted/40">
-              Tarkastele energiankulutusta →
+            <Link to="/energy" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
+              <span>Tarkastele energiankulutusta</span>
+              <ArrowRight className="card-arrow h-4 w-4" />
             </Link>
           </CardContent>
         </Card>
