@@ -18,7 +18,12 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const qo = (id: string) =>
-  queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
+  queryOptions({
+    queryKey: ["thermostat", id],
+    queryFn: () => getThermostat({ data: { id } }),
+    refetchInterval: 60_000,
+  });
+
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
 const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
 const zonesQO = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
@@ -32,6 +37,15 @@ export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   },
   component: ThermostatPage,
 });
+
+function formatRelative(d: Date): string {
+  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 60) return `${diffSec} s sitten`;
+  if (diffSec < 3600) return `${Math.round(diffSec / 60)} min sitten`;
+  if (diffSec < 86400) return `${Math.round(diffSec / 3600)} h sitten`;
+  return d.toLocaleString("fi-FI");
+}
+
 
 function SyncDeviceButton({ id }: { id: string }) {
   const qc = useQueryClient();
@@ -116,6 +130,53 @@ function ThermostatPage() {
       teho: Number(r.power_w),
     }));
 
+  // Huonelämpötila: Ebecon viimeisin snapshot ensisijaisesti, tai uusin reading.
+  const ebSettings = (t.ebeco_settings ?? {}) as Record<string, unknown>;
+  const roomTempRaw =
+    (typeof ebSettings.temperatureRoomDecimals === "number"
+      ? ebSettings.temperatureRoomDecimals
+      : typeof ebSettings.temperatureRoom === "number"
+        ? ebSettings.temperatureRoom
+        : null) ??
+    (() => {
+      const lastTemp = [...data.readings].reverse().find((r: any) => r.room_temp != null);
+      return lastTemp ? Number((lastTemp as any).room_temp) : null;
+    })();
+  const floorTempRaw =
+    typeof ebSettings.temperatureFloorDecimals === "number"
+      ? ebSettings.temperatureFloorDecimals
+      : typeof ebSettings.temperatureFloor === "number"
+        ? ebSettings.temperatureFloor
+        : null;
+
+  const lastSeenAt = t.last_seen_at ? new Date(t.last_seen_at as string) : null;
+  const lastSeenLabel = lastSeenAt ? formatRelative(lastSeenAt) : "ei dataa";
+
+  // Override-laskuri: kun setpoint > guest_max, näytä paljonko aikaa rajaan
+  const zoneCfg = (zonesData.defaults as any[]).find((z) => z.zone === t.zone);
+  const graceMin = Number(zoneCfg?.override_grace_minutes ?? 0);
+  const overrideStarted = t.override_started_at ? new Date(t.override_started_at as string) : null;
+  const overOverGuestMax = Number(t.current_setpoint) > Number(t.guest_max_setpoint);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!overOverGuestMax) return;
+    const h = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(h);
+  }, [overOverGuestMax]);
+  void tick;
+  let returnLabel: string | null = null;
+  if (overOverGuestMax) {
+    if (graceMin <= 0) {
+      returnLabel = "seuraavalla tarkistuksella (≤ 60 s)";
+    } else {
+      const startMs = overrideStarted ? overrideStarted.getTime() : Date.now();
+      const remainingMs = startMs + graceMin * 60_000 - Date.now();
+      if (remainingMs <= 0) returnLabel = "seuraavalla tarkistuksella (≤ 60 s)";
+      else returnLabel = `noin ${Math.ceil(remainingMs / 60_000)} min kuluttua`;
+    }
+  }
+
+
   return (
     <div className="p-8">
       {t.apartment_id ? (
@@ -171,6 +232,36 @@ function ThermostatPage() {
             <CardTitle className="text-base">Ohjaus</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <div className="flex items-baseline justify-between">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Huonelämpötila nyt
+                </Label>
+                <span className="text-3xl font-semibold text-primary">
+                  {roomTempRaw != null ? `${Number(roomTempRaw).toFixed(1)} °C` : "—"}
+                </span>
+              </div>
+              <div className="mt-1 flex items-baseline justify-between text-xs text-muted-foreground">
+                <span>
+                  {floorTempRaw != null
+                    ? `Lattia ${Number(floorTempRaw).toFixed(1)} °C`
+                    : "Lattia —"}
+                </span>
+                <span>päivitetty {lastSeenLabel}</span>
+              </div>
+            </div>
+
+            {returnLabel && (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                <div className="font-medium text-warning">
+                  Asetus {setpoint.toFixed(1)} °C ylittää asiakkaan ylärajan ({guestMax.toFixed(1)} °C)
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  Sovellus palauttaa asetuksen rajaan {returnLabel}.
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="mb-2 flex items-baseline justify-between">
                 <Label>Asetuslämpötila</Label>
@@ -190,10 +281,11 @@ function ThermostatPage() {
               </div>
               {setpoint > guestMax && (
                 <p className="mt-2 text-xs text-warning">
-                  Arvo ylittää asiakkaan ylärajan ({guestMax.toFixed(1)} °C) – palautuu rajaan tallennettaessa.
+                  Sovellus pakottaa arvon takaisin asiakkaan ylärajaan ({guestMax.toFixed(1)} °C) palautusviiveen jälkeen.
                 </p>
               )}
             </div>
+
 
             <div className="border-t pt-4">
               <div className="mb-2 flex items-baseline justify-between">

@@ -163,9 +163,10 @@ function ZoneCard({
             <span className="text-sm text-muted-foreground">minuuttia</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Viive jonka termostaatti odottaa asiakkaan tekemän säädön jälkeen, ennen kuin se palauttaa
-            lämpötilan asetettuun maksimiarvoon. 0 = palautus välittömästi.
+            Aika jonka jälkeen sovellus pakottaa asetuksen takaisin asiakkaan ylärajaan,
+            jos asetus on viety yli. 0 = pakotus seuraavalla tarkistussyklillä (≤ 60 s).
           </p>
+
         </div>
 
         <div className="space-y-2 border-t pt-4">

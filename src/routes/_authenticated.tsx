@@ -1,10 +1,15 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Home, Calendar, BarChart3, Settings, LogOut, Layers, Radio, Menu, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
+import { enforceThermostatLimits } from "@/lib/enforcement.functions";
+import { syncEbecoDevices } from "@/lib/data.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -13,6 +18,7 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthenticatedLayout,
 });
+
 
 const NAV = [
   { to: "/dashboard", label: "Yleisnäkymä", icon: LayoutDashboard },
@@ -28,15 +34,57 @@ function AuthenticatedLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const qc = useQueryClient();
+  const enforce = useServerFn(enforceThermostatLimits);
+  const sync = useServerFn(syncEbecoDevices);
+  const runningRef = useRef(false);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      if (runningRef.current) return;
+      runningRef.current = true;
+      try {
+        await sync({}).catch(() => undefined);
+        const res = (await enforce({}).catch(() => null)) as
+          | { actions?: Array<{ name: string; to: number; reason: string }> }
+          | null;
+        if (!alive) return;
+        if (res?.actions?.length) {
+          for (const a of res.actions) {
+            const label =
+              a.reason === "max_hold"
+                ? `${a.name}: max-pito päättyi → ${a.to.toFixed(1)} °C`
+                : `${a.name}: asetus palautettu rajaan ${a.to.toFixed(1)} °C`;
+            toast.message(label);
+          }
+        }
+        qc.invalidateQueries({ queryKey: ["devices"] });
+        qc.invalidateQueries({ queryKey: ["overview"] });
+        qc.invalidateQueries({ queryKey: ["apartments"] });
+        qc.invalidateQueries({ queryKey: ["thermostat"] });
+      } finally {
+        runningRef.current = false;
+      }
+    };
+    // Aja heti + joka 60 s
+    void tick();
+    const handle = setInterval(tick, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(handle);
+    };
+  }, [enforce, sync, qc]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/login" });
   };
+
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
