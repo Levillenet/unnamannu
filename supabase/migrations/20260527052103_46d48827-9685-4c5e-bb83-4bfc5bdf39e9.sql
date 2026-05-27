@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.enforce_pending_overrides() FROM PUBLIC, anon, authenticated;
