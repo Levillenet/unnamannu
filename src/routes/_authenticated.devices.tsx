@@ -148,10 +148,16 @@ function DevicesPage() {
     mutationFn: () => sync(),
     onSuccess: (r: any) => {
       invalidate();
-      toast.success(r.created > 0 ? `${r.created} uutta laitetta löytyi` : "Ei uusia laitteita");
+      const parts = [
+        `${r.total ?? 0} laitetta Ebecossa`,
+        r.created > 0 ? `${r.created} uutta` : null,
+        r.updated > 0 ? `${r.updated} päivitetty` : null,
+      ].filter(Boolean);
+      toast.success(parts.join(" · "));
     },
     onError: (e: any) => toast.error(e.message ?? "Synkronointi epäonnistui"),
   });
+
 
   const allocM = useMutation({
     mutationFn: allocate,
