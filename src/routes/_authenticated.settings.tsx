@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { seedDemoData } from "@/lib/seed.functions";
+import { diagnoseEbecoChildLock } from "@/lib/ebeco-diagnose.functions";
 import {
   listUsers, inviteUser, updateUserRole, removeUser, listAuditLog, sendPasswordReset,
 } from "@/lib/users.functions";
@@ -38,7 +39,7 @@ function SettingsPage() {
           {isAdmin && <TabsTrigger value="users">Käyttäjät</TabsTrigger>}
           {isAdmin && <TabsTrigger value="audit">Loki</TabsTrigger>}
         </TabsList>
-        <TabsContent value="general" className="pt-4"><GeneralTab /></TabsContent>
+        <TabsContent value="general" className="pt-4"><GeneralTab />{isAdmin && <div className="mt-4"><EbecoDiagnosticsCard /></div>}</TabsContent>
         {isAdmin && <TabsContent value="users" className="pt-4"><UsersTab /></TabsContent>}
         {isAdmin && <TabsContent value="audit" className="pt-4"><AuditTab /></TabsContent>}
       </Tabs>
