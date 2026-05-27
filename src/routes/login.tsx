@@ -66,12 +66,12 @@ function LoginPage() {
         <div className="mb-8 flex flex-col items-center gap-2">
           <img src={logo} alt="Levi Suites" className="h-32 w-auto object-contain md:h-40" />
           <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Unna&amp;Mannu</span>
-          <span className="text-sm text-muted-foreground">Levi Suites · Lattialämmityksen hallinta</span>
+          <span className="text-sm text-muted-foreground">Levi Suites · Kiinteistöautomaation hallinta</span>
         </div>
         <Card>
           <CardHeader>
             <CardTitle>Kirjaudu sisään</CardTitle>
-            <CardDescription>Kiinteistön lattialämmityksen hallinta</CardDescription>
+            <CardDescription>Kiinteistöautomaation hallinta</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
