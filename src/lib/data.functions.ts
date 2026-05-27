@@ -697,3 +697,125 @@ export const createApartment = createServerFn({ method: "POST" })
     });
     return created;
   });
+
+// ---------- Ebeco settings: single + broadcast ----------
+
+const scopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("self") }),
+  z.object({ kind: z.literal("all") }),
+  z.object({ kind: z.literal("zone"), zone: z.string().min(1).max(40) }),
+  z.object({ kind: z.literal("apartment"), apartment_id: z.string().uuid() }),
+  z.object({ kind: z.literal("building"), building_id: z.string().uuid() }),
+]);
+
+async function pushPatchToTargets(
+  supabase: any,
+  targetIds: string[],
+  patch: EbecoPatch,
+): Promise<{ succeeded: number; failed: number; errors: string[] }> {
+  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [] };
+
+  const { data: rows, error } = await supabase
+    .from("thermostats")
+    .select("id,ebeco_device_id")
+    .in("id", targetIds);
+  if (error) throw new Error(error.message);
+
+  const withEbeco = (rows ?? []).filter((r: any) => r.ebeco_device_id);
+  const results = await Promise.allSettled(
+    withEbeco.map((r: any) =>
+      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(() => r.id as string),
+    ),
+  );
+
+  const succeededIds: string[] = [];
+  const errors: string[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled") succeededIds.push(r.value);
+    else errors.push(String((r.reason as Error)?.message ?? r.reason));
+  }
+
+  // Mirror successful changes into local columns + ebeco_settings JSONB.
+  const colPatch = ebecoPatchToColumns(patch);
+  if (succeededIds.length > 0 && Object.keys(colPatch).length > 0) {
+    const { error: upErr } = await (supabase.from("thermostats") as any)
+      .update(colPatch)
+      .in("id", succeededIds);
+    if (upErr) errors.push(upErr.message);
+  }
+
+  return { succeeded: succeededIds.length, failed: errors.length, errors };
+}
+
+export const updateThermostatSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      patch: ebecoPatchSchema,
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const result = await pushPatchToTargets(supabase, [data.id], data.patch as EbecoPatch);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.settings.update",
+      entity_type: "thermostat",
+      entity_id: data.id,
+      details: { patch: data.patch, ...result },
+    });
+    if (result.failed > 0 && result.succeeded === 0) {
+      throw new Error(result.errors[0] ?? "Ebeco-päivitys epäonnistui");
+    }
+    return result;
+  });
+
+export const broadcastThermostatSetting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      source_id: z.string().uuid(),
+      patch: ebecoPatchSchema,
+      scope: scopeSchema,
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+
+    // Resolve scope → target thermostat ids.
+    let query = supabase.from("thermostats").select("id,zone,apartment_id");
+    const scope = data.scope;
+    if (scope.kind === "self") {
+      query = query.eq("id", data.source_id);
+    } else if (scope.kind === "zone") {
+      query = query.eq("zone", scope.zone);
+    } else if (scope.kind === "apartment") {
+      query = query.eq("apartment_id", scope.apartment_id);
+    } else if (scope.kind === "building") {
+      // building → all apartments in building → thermostats
+      const { data: apts } = await supabase
+        .from("apartments")
+        .select("id")
+        .eq("building_id", scope.building_id);
+      const ids = (apts ?? []).map((a: any) => a.id);
+      if (ids.length === 0) return { total: 0, succeeded: 0, failed: 0, errors: [] };
+      query = query.in("apartment_id", ids);
+    }
+    // scope.kind === "all": no filter (every thermostat).
+
+    const { data: targets, error } = await query;
+    if (error) throw new Error(error.message);
+    const ids = (targets ?? []).map((t: any) => t.id as string);
+
+    const result = await pushPatchToTargets(supabase, ids, data.patch as EbecoPatch);
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "thermostat.settings.broadcast",
+      entity_type: "thermostat",
+      entity_id: data.source_id,
+      details: { scope: data.scope, patch: data.patch, total: ids.length, ...result },
+    });
+
+    return { total: ids.length, ...result };
+  });
+
