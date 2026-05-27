@@ -3,6 +3,7 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { useServerFn } from "@tanstack/react-start";
 import {
   listDevices,
+  listZoneDefaults,
   syncEbecoDevices,
   allocateThermostat,
   unallocateThermostat,
@@ -13,15 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RefreshCw, Radio, Link2Off } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 const qo = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
+const zonesQo = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
 
 export const Route = createFileRoute("/_authenticated/devices")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(qo),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(qo),
+      context.queryClient.ensureQueryData(zonesQo),
+    ]),
   component: DevicesPage,
 });
 
@@ -30,26 +35,30 @@ type Device = {
   name: string;
   ebeco_device_id: string | null;
   apartment_id: string | null;
-  zone: "room" | "bathroom";
+  zone: string;
   status: string;
   last_seen_at: string | null;
   apartments: { id: string; number: string } | null;
 };
 
+type ZoneOption = { zone: string; label: string };
+
 function UnallocatedRow({
   device,
   apartments,
+  zones,
   onAllocate,
   saving,
 }: {
   device: Device;
   apartments: { id: string; number: string }[];
-  onAllocate: (data: { id: string; apartment_id: string; name: string; zone: "room" | "bathroom" }) => void;
+  zones: ZoneOption[];
+  onAllocate: (data: { id: string; apartment_id: string; name: string; zone: string }) => void;
   saving: boolean;
 }) {
   const [apartmentId, setApartmentId] = useState<string>("");
   const [name, setName] = useState<string>(device.name);
-  const [zone, setZone] = useState<"room" | "bathroom">("room");
+  const [zone, setZone] = useState<string>(zones[0]?.zone ?? "room");
 
   return (
     <div className="rounded-md border border-border bg-card p-4">
@@ -92,18 +101,16 @@ function UnallocatedRow({
 
         <div>
           <Label className="text-xs">Vyöhyke</Label>
-          <RadioGroup
-            value={zone}
-            onValueChange={(v) => setZone(v as "room" | "bathroom")}
-            className="mt-2 flex gap-4"
-          >
-            <label className="flex items-center gap-1.5 text-sm">
-              <RadioGroupItem value="room" /> Huone
-            </label>
-            <label className="flex items-center gap-1.5 text-sm">
-              <RadioGroupItem value="bathroom" /> Kylpyhuone
-            </label>
-          </RadioGroup>
+          <Select value={zone} onValueChange={setZone}>
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {zones.map((z) => (
+                <SelectItem key={z.zone} value={z.zone}>{z.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -122,6 +129,9 @@ function UnallocatedRow({
 
 function DevicesPage() {
   const { data } = useSuspenseQuery(qo);
+  const { data: zonesData } = useSuspenseQuery(zonesQo);
+  const zoneOptions: ZoneOption[] = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
+  const zoneLabelOf = (z: string) => zoneOptions.find((o) => o.zone === z)?.label ?? z;
   const qc = useQueryClient();
 
   const sync = useServerFn(syncEbecoDevices);
@@ -204,6 +214,7 @@ function DevicesPage() {
                   key={d.id}
                   device={d}
                   apartments={data.apartments as any[]}
+                  zones={zoneOptions}
                   saving={allocM.isPending}
                   onAllocate={(payload) => allocM.mutate({ data: payload })}
                 />
@@ -237,7 +248,7 @@ function DevicesPage() {
                         <span className="font-mono text-xs text-muted-foreground">{t.ebeco_device_id}</span>
                         <span className="font-medium">{t.name}</span>
                         <Badge variant="outline" className="text-xs">
-                          {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"}
+                          {zoneLabelOf(t.zone)}
                         </Badge>
                       </div>
                       <div className="flex gap-2">

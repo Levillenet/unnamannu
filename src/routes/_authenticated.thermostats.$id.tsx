@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules, listDevices } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -19,12 +19,14 @@ const qo = (id: string) =>
   queryOptions({ queryKey: ["thermostat", id], queryFn: () => getThermostat({ data: { id } }) });
 const schedulesQO = queryOptions({ queryKey: ["schedules"], queryFn: () => listSchedules() });
 const devicesQO = queryOptions({ queryKey: ["devices"], queryFn: () => listDevices() });
+const zonesQO = queryOptions({ queryKey: ["zone-defaults"], queryFn: () => listZoneDefaults() });
 
 export const Route = createFileRoute("/_authenticated/thermostats/$id")({
   loader: ({ params, context }) => {
     context.queryClient.ensureQueryData(qo(params.id));
     context.queryClient.ensureQueryData(schedulesQO);
     context.queryClient.ensureQueryData(devicesQO);
+    context.queryClient.ensureQueryData(zonesQO);
   },
   component: ThermostatPage,
 });
@@ -37,6 +39,8 @@ function ThermostatPage() {
   const { data: devices } = useSuspenseQuery(devicesQO);
   const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
   const t = data.thermostat;
+  const { data: zonesData } = useSuspenseQuery(zonesQO);
+  const zoneOptions = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
   const qc = useQueryClient();
   const update = useServerFn(updateThermostat);
   const m = useMutation({
@@ -190,20 +194,22 @@ function ThermostatPage() {
               <Label>Vyöhyke</Label>
               <Select
                 value={t.zone}
-                onValueChange={(v) => m.mutate({ data: { id: t.id, zone: v as "room" | "bathroom" } })}
+                onValueChange={(v) => m.mutate({ data: { id: t.id, zone: v } })}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="room">Huone</SelectItem>
-                  <SelectItem value="bathroom">Kylpyhuone</SelectItem>
+                  {zoneOptions.map((z) => (
+                    <SelectItem key={z.zone} value={z.zone}>{z.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">
                 Termostaatti seuraa valitun vyöhykkeen oletuksia ja "sovella kaikkiin" -toimintoja.
               </p>
             </div>
+
 
             <div>
               <Label>Aikataulu</Label>

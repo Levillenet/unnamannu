@@ -212,7 +212,7 @@ export type Database = {
           room: string | null
           status: Database["public"]["Enums"]["thermostat_status"]
           updated_at: string
-          zone: Database["public"]["Enums"]["thermostat_zone"]
+          zone: string
         }
         Insert: {
           apartment_id?: string | null
@@ -232,7 +232,7 @@ export type Database = {
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
-          zone?: Database["public"]["Enums"]["thermostat_zone"]
+          zone?: string
         }
         Update: {
           apartment_id?: string | null
@@ -252,7 +252,7 @@ export type Database = {
           room?: string | null
           status?: Database["public"]["Enums"]["thermostat_status"]
           updated_at?: string
-          zone?: Database["public"]["Enums"]["thermostat_zone"]
+          zone?: string
         }
         Relationships: [
           {
@@ -296,32 +296,32 @@ export type Database = {
         Row: {
           building_id: string
           created_at: string
-          default_setpoint: number
           guest_max_setpoint: number
           id: string
+          label: string
           override_grace_minutes: number
           updated_at: string
-          zone: Database["public"]["Enums"]["thermostat_zone"]
+          zone: string
         }
         Insert: {
           building_id: string
           created_at?: string
-          default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
+          label: string
           override_grace_minutes?: number
           updated_at?: string
-          zone: Database["public"]["Enums"]["thermostat_zone"]
+          zone: string
         }
         Update: {
           building_id?: string
           created_at?: string
-          default_setpoint?: number
           guest_max_setpoint?: number
           id?: string
+          label?: string
           override_grace_minutes?: number
           updated_at?: string
-          zone?: Database["public"]["Enums"]["thermostat_zone"]
+          zone?: string
         }
         Relationships: []
       }
@@ -330,6 +330,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_zone_default: { Args: { _id: string }; Returns: undefined }
       enforce_pending_overrides: { Args: never; Returns: number }
       has_role: {
         Args: {
@@ -342,7 +343,6 @@ export type Database = {
     Enums: {
       app_role: "manager" | "resident"
       thermostat_status: "online" | "offline" | "alarm"
-      thermostat_zone: "room" | "bathroom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -472,7 +472,6 @@ export const Constants = {
     Enums: {
       app_role: ["manager", "resident"],
       thermostat_status: ["online", "offline", "alarm"],
-      thermostat_zone: ["room", "bathroom"],
     },
   },
 } as const

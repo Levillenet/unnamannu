@@ -1,73 +1,69 @@
 ## Tavoite
 
-Manageri painaa "Synkronoi Ebecosta" → järjestelmä hakee Ebeco-tilin laitteet → uudet laitteet ilmestyvät **Allokoimattomat termostaatit** -listalle → manageri allokoi jokaisen huoneistoon, antaa nimen ("Makuuhuone", "Kylpyhuone" jne.) ja zonen (huone/kylpyhuone). Tässä vaiheessa Ebeco-haku on mock — oikea API-kutsu kytketään myöhemmin samaan funktioon.
+Vyöhykeasetukset kevennetään: poistetaan turhat kentät ja muutetaan vyöhykkeet kovakoodatusta listasta (`room`, `bathroom`) dynaamisiksi, jotta manageri voi luoda uusia vyöhykkeitä tarpeen mukaan (esim. "Sauna", "Aula", "Varasto").
 
-## Tietomalli (pienet muutokset)
+## Mitä muuttuu
 
-- `thermostats.apartment_id` muutetaan **nullable** → allokoimaton laite voi olla tietokannassa ilman huoneistoa.
-- `thermostats.ebeco_device_id` saa **unique-constraintin** → estää saman laitteen tuonnin kahdesti.
-- `thermostats.name` täytetään aluksi Ebecon antamalla nimellä (esim. "EB-12345"), manageri muokkaa sen kuvaavaksi allokoidessa.
-- Ei erillistä `rooms`-taulua — `name` riittää (käyttäjän vahvistama valinta).
+### 1. Karsitaan vyöhykeasetuksista pois
 
-## Backend — uudet server-funktiot (src/lib/data.functions.ts)
+- `zone_defaults.default_setpoint` → kenttä poistetaan tietokannasta ja UI:sta.
+- Zones-sivun "Aseta sama setpoint kaikille vyöhykkeen termostaateille" -nappi ja `applySetpointToAll`-logiikka serveriltä → poistetaan.
+- `saveZoneDefault`-server-fn yksinkertaistuu: jää vain `guest_max_setpoint`, `override_grace_minutes`, `applyToAll` (max-arvo kaikille) ja `lockAll`.
 
-1. **`syncEbecoDevices`** (mock toistaiseksi)
-   - Palauttaa listan "Ebeco-laitteita": `[{ ebeco_device_id, ebeco_name, online }, ...]`
-   - Generoi muutaman uuden ID:n jokaisella kutsulla + sisällyttää olemassa olevat tietokannan laitteet
-   - Tekee upsertin `thermostats`-tauluun: uudet laitteet luodaan `apartment_id = NULL`, `name = ebeco_name`, `zone = 'room'` oletuksena
-   - Päivittää `last_seen_at` ja `status` olemassa oleville
-2. **`listUnallocatedThermostats`** — palauttaa termostaatit joilla `apartment_id IS NULL`
-3. **`allocateThermostat({ id, apartment_id, name, zone })`** — asettaa allokoinnin yhdellä kutsulla
-4. **`unallocateThermostat({ id })`** — vapauttaa termostaatin takaisin allokoimattomien listalle (säilyttää historian)
+Vyöhykkeelle jää siis:
+- **Max-lämpötila** (`guest_max_setpoint`) — yläraja jonka yli asiakas ei voi nostaa
+- **Palautuksen viive** (`override_grace_minutes`) — minuutit, joita termostaatti odottaa ennen kuin palauttaa arvon takaisin maksimiin
 
-## UI
+### 2. Dynaamiset vyöhykkeet
 
-### Uusi sivu: `/devices` (sivupalkkiin "Laitteet")
+Nykyinen `thermostat_zone` -enum (`'room' | 'bathroom'`) korvataan vapaalla `text`-kentällä. Vyöhykkeen "olemassaolo" määräytyy `zone_defaults`-taulun riveistä — eli **luodaan uusi rivi `zone_defaults`-tauluun = luodaan uusi vyöhyke**.
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Laitteet                       [ Synkronoi Ebecosta ↻ ]  │
-├──────────────────────────────────────────────────────────┤
-│ Allokoimattomat (3)                                      │
-│                                                          │
-│ • EB-48201   online                                      │
-│   Huoneisto: [Valitse ▾]  Nimi: [_______]                │
-│   Vyöhyke: ( ) Huone  ( ) Kylpyhuone     [ Allokoi ]     │
-│                                                          │
-│ • EB-48202   online    ...                               │
-├──────────────────────────────────────────────────────────┤
-│ Allokoidut (24)                                          │
-│   EB-12001 → Huoneisto 1 / "Makuuhuone" (huone)  [Muokk.]│
-│   ...                                                    │
-└──────────────────────────────────────────────────────────┘
-```
+Tietokantamuutokset:
+- `ALTER TABLE thermostats ALTER COLUMN zone TYPE text USING zone::text;` (oletus säilyy `'room'`)
+- `ALTER TABLE zone_defaults ALTER COLUMN zone TYPE text USING zone::text;`
+- Lisätään `zone_defaults`-tauluun `label text` (näyttönimi, esim. "Sauna") sekä uniqueness `(building_id, zone)`-parille (jo on).
+- `DROP TYPE thermostat_zone` lopuksi.
+- `default_setpoint`-sarake pudotetaan.
 
-- Synkka-nappi: kutsuu `syncEbecoDevices`, näyttää toastin "X uutta laitetta löytyi".
-- Allokoimattomat-lista: jokaisella rivillä Select huoneistolle, Input nimelle, RadioGroup vyöhykkeelle, **Allokoi**-nappi.
-- Allokoidut-lista: nykyiset termostaatit huoneistoittain ryhmiteltynä, jokaisella **Vapauta** + **Muokkaa**-toiminnot.
+### 3. UI: `/zones`-sivu uusiksi
 
-### Pieni lisäys: huoneistokortti
-- Huoneiston laajennetussa rivissä (`_authenticated.apartments.tsx`) lisätään pieni **"+ Lisää termostaatti"** -linkki, joka avaa allokointidialogin allokoimattomien listalta.
+Lista olemassaolevista vyöhykkeistä korteina (haetaan `zone_defaults`-rivit). Per kortti:
+- Vyöhykkeen näyttönimi + slug (esim. "Kylpyhuone / `bathroom`")
+- Max-lämpötila (slider 5–35 °C, 0.5° askel)
+- Palautuksen viive (slider 0–30 min)
+- Termostaattien lukumäärä tällä vyöhykkeellä
+- "Sovella max kaikkiin" -checkbox + "Tallenna"
+- "Lukitse kaikki vyöhykkeen termostaatit" -toggle
+- "Poista vyöhyke" -nappi (sallittu vain jos ei yhtään termostaattia käytä sitä)
 
-### Termostaatin asetussivu (`_authenticated.thermostats.$id.tsx`)
-- Lisätään **Vapauta laite** -nappi (palauttaa allokoimattomien listalle).
-- Apartment-Select, jolla termostaatti voidaan siirtää toiseen huoneistoon.
+Sivun yläosaan **"+ Lisää vyöhyke"** -dialogi:
+- Näyttönimi (esim. "Sauna")
+- Slug (auto-generoidaan nimestä, muokattavissa, vain `[a-z0-9_-]+`)
+- Max-lämpötila (oletus 23 °C)
+- Palautuksen viive (oletus 2 min)
+- Tallenna → uusi rivi `zone_defaults`-tauluun
 
-## Mock-data muutokset
+### 4. Muut kosketuspisteet
 
-`src/lib/seed.functions.ts` — lisää siemenvaiheessa 2–3 "Ebeco-laitetta" jotka jäävät allokoimattomiksi (esimerkkidata että UI ei ole tyhjä).
+Korvataan kovakoodatut `"room" | "bathroom"` -tyypit ja valitsimet:
+- `_authenticated.devices.tsx` — allokoinnin zone-valitsin → `Select` joka hakee vaihtoehdot `zone_defaults`-listalta
+- `_authenticated.thermostats.$id.tsx` — saman muutoksen vyöhykkeen vaihtoon
+- `_authenticated.apartments.tsx` ja `apartments.$id.tsx` — vyöhykkeen näyttäminen käyttää `zone_defaults.label`ia (fallback raakaan stringiin)
+- `data.functions.ts` — zod-validaattoreissa `z.string().regex(/^[a-z0-9_-]+$/)`, ei enää enumia
+- `seed.functions.ts` — `default_setpoint`-rivit pois, muut säilyy
 
-## Migraatio
+## Käyttäjäkokemus
 
-```sql
-ALTER TABLE public.thermostats ALTER COLUMN apartment_id DROP NOT NULL;
-CREATE UNIQUE INDEX thermostats_ebeco_device_id_key
-  ON public.thermostats (ebeco_device_id)
-  WHERE ebeco_device_id IS NOT NULL;
-```
+- Vakiona järjestelmässä on edelleen `room` ("Huone") ja `bathroom` ("Kylpyhuone") seed-datassa.
+- Manageri voi `/zones`-sivulta lisätä esim. "Sauna" (max 45 °C, viive 5 min) → uusi vyöhyke on heti valittavissa termostaatin allokoinnissa.
+- Vyöhykkeen poistaminen estyy ystävällisellä virheviestillä jos siihen on liitetty termostaatteja.
 
-## Mikä jää myöhemmäksi
+## Migraatio olemassaolevalle datalle
 
-- **Oikea Ebeco API -integraatio**: `syncEbecoDevices` korvataan oikealla fetch-kutsulla Ebeco Connect API:in (tunnukset `add_secret`-työkalulla, esim. `EBECO_USERNAME`, `EBECO_PASSWORD`). Funktion sopimus pysyy samana, joten UI ei muutu.
-- **Bulk-allokointi** (esim. valitse useita kerralla samaan huoneistoon) — voidaan lisätä jos tarpeen.
-- **Nimeämiskäytäntö Ebecossa + automäppäys** — jos myöhemmin haluatte että Ebeco-nimi "A12-Makuuhuone" parsitaan automaattisesti huoneistoon 12, lisätään parseri `syncEbecoDevices`-funktioon.
+Olemassaoleva data säilyy: enum-arvot `'room'` ja `'bathroom'` muuttuvat samannimisiksi teksteiksi. `zone_defaults`-riveihin lisätään `label` jälkikäteen (`'room' → 'Huone'`, `'bathroom' → 'Kylpyhuone'`). `default_setpoint`-sarake pudotetaan; mitään dataa ei menetetä koska kenttää ei käytetä missään logiikassa.
+
+## Tekniset huomiot
+
+- `enforce_pending_overrides()`-funktio toimii edelleen — se hakee `override_grace_minutes`in `zone_defaults`ista vyöhyke-stringin perusteella, joten enumista tekstiin -vaihto ei vaikuta.
+- Zone-valitsin (`Select`) hakee listansa samasta `listZoneDefaults`-fn:stä jonka zones-sivu jo käyttää.
+- Migraatio tehdään yhdessä SQL-tiedostossa: `ALTER TYPE → text`, sarakkeen pudotus, `label`-lisäys + päivitys, `DROP TYPE`.
