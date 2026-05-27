@@ -39,6 +39,8 @@ function ThermostatPage() {
   const { data: devices } = useSuspenseQuery(devicesQO);
   const apartments = (devices.apartments as { id: string; number: string }[]) ?? [];
   const t = data.thermostat;
+  const { data: zonesData } = useSuspenseQuery(zonesQO);
+  const zoneOptions = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
   const qc = useQueryClient();
   const update = useServerFn(updateThermostat);
   const m = useMutation({
