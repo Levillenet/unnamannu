@@ -408,52 +408,99 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
 
 // ---------- DEVICES (Ebeco sync + allocation) ----------
 
-// Mock: simulates pulling the Ebeco account's device list.
-// In production, replace the inside of this handler with a real fetch to the
-// Ebeco Connect API using credentials from process.env. The contract stays the
-// same: each call upserts devices into public.thermostats keyed by ebeco_device_id.
+// Syncs the Ebeco account's device list into public.thermostats keyed by ebeco_device_id.
+// Upserts new devices (apartment_id = null → allocate later from Laitteet view),
+// refreshes status, current_setpoint, last_seen_at for known ones, and logs one
+// reading per device into thermostat_readings.
 export const syncEbecoDevices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId, claims } = context;
 
-    // Existing devices we know about
+    const devices = await fetchDevices();
+
     const { data: existing } = await supabase
       .from("thermostats")
       .select("id,ebeco_device_id");
-    const knownIds = new Set((existing ?? []).map((t) => t.ebeco_device_id).filter(Boolean));
-
-    // Simulate Ebeco returning a few brand-new devices each call
-    const newCount = 1 + Math.floor(Math.random() * 3);
-    const newDevices = Array.from({ length: newCount }, () => {
-      const id = `EB-${40000 + Math.floor(Math.random() * 9999)}`;
-      return {
-        ebeco_device_id: id,
-        name: id,
-        zone: "room" as const,
-        apartment_id: null,
-        status: "online" as const,
-        last_seen_at: new Date().toISOString(),
-      };
-    }).filter((d) => !knownIds.has(d.ebeco_device_id));
+    const existingByEbecoId = new Map<string, string>(
+      (existing ?? [])
+        .filter((t) => t.ebeco_device_id)
+        .map((t) => [String(t.ebeco_device_id), t.id]),
+    );
 
     let created = 0;
-    if (newDevices.length > 0) {
-      const { error } = await supabase.from("thermostats").insert(newDevices);
-      if (error) throw new Error(error.message);
-      created = newDevices.length;
+    let updated = 0;
+    const nowIso = new Date().toISOString();
+    const readingsToInsert: Array<{
+      thermostat_id: string;
+      ts: string;
+      setpoint: number | null;
+      room_temp: number | null;
+      floor_temp: number | null;
+    }> = [];
+
+    for (const d of devices) {
+      const ebecoId = String(d.id);
+      const status: "online" | "offline" = d.online === false ? "offline" : "online";
+      const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
+      const existingId = existingByEbecoId.get(ebecoId);
+
+      if (existingId) {
+        const patch: Record<string, unknown> = {
+          last_seen_at: nowIso,
+          status,
+        };
+        if (setpoint != null) patch.current_setpoint = setpoint;
+        const { error } = await supabase.from("thermostats").update(patch).eq("id", existingId);
+        if (error) throw new Error(error.message);
+        updated += 1;
+        readingsToInsert.push({
+          thermostat_id: existingId,
+          ts: nowIso,
+          setpoint,
+          room_temp: pickRoomTemp(d),
+          floor_temp: pickFloorTemp(d),
+        });
+      } else {
+        const { data: ins, error } = await supabase
+          .from("thermostats")
+          .insert({
+            ebeco_device_id: ebecoId,
+            name: d.displayName ?? `EB-${ebecoId}`,
+            zone: "room",
+            apartment_id: null,
+            status,
+            current_setpoint: setpoint ?? 21,
+            last_seen_at: nowIso,
+          })
+          .select("id")
+          .single();
+        if (error) throw new Error(error.message);
+        created += 1;
+        readingsToInsert.push({
+          thermostat_id: ins.id,
+          ts: nowIso,
+          setpoint,
+          room_temp: pickRoomTemp(d),
+          floor_temp: pickFloorTemp(d),
+        });
+      }
     }
 
-    // Refresh last_seen_at for existing ones (simulate them being reachable)
-    if ((existing ?? []).length > 0) {
-      await supabase
-        .from("thermostats")
-        .update({ last_seen_at: new Date().toISOString() })
-        .not("ebeco_device_id", "is", null);
+    if (readingsToInsert.length > 0) {
+      await supabase.from("thermostat_readings").insert(readingsToInsert);
     }
 
-    return { created, refreshed: existing?.length ?? 0 };
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "ebeco.sync",
+      entity_type: "ebeco",
+      entity_id: null,
+      details: { total: devices.length, created, updated },
+    });
+
+    return { created, updated, total: devices.length };
   });
+
 
 export const listDevices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
