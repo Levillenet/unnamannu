@@ -856,8 +856,24 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
     if (rowErr) throw new Error(rowErr.message);
     if (!row?.ebeco_device_id) throw new Error("Termostaatilta puuttuu Ebeco-ID");
 
-    const detail = await fetchDeviceById(Number(row.ebeco_device_id));
-    if (!detail) throw new Error("Ebecosta ei saatu vastausta tälle laitteelle");
+    const ebecoId = Number(row.ebeco_device_id);
+    let detail = await fetchDeviceById(ebecoId);
+    if (!detail) {
+      // Varakeino: hae kaikkien laitteiden lista ja poimi sieltä
+      try {
+        const list = await fetchDevices();
+        detail = list.find((d) => d.id === ebecoId) ?? null;
+      } catch (err) {
+        console.error("[syncEbecoDevice] fetchDevices fallback failed:", (err as Error).message);
+      }
+    }
+    if (!detail) {
+      return {
+        ok: false as const,
+        message:
+          "Ebecosta ei löytynyt tietoja tälle laitteelle. Tarkista että laite on yhä Ebeco-tilillä.",
+      };
+    }
 
     const ebecoCols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
     const nowIso = new Date().toISOString();
@@ -875,7 +891,7 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
     const { error } = await (supabase.from("thermostats") as any)
       .update(patch)
       .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (error) return { ok: false as const, message: error.message };
 
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: "ebeco.sync.device",
@@ -884,5 +900,5 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
       details: { ebeco_device_id: row.ebeco_device_id },
     });
 
-    return { ok: true };
+    return { ok: true as const, message: "Asetukset päivitetty Ebecosta" };
   });
