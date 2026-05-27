@@ -24,7 +24,9 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       tempReadings.length > 0
         ? tempReadings.reduce((s, r) => s + Number(r.room_temp), 0) / tempReadings.length
         : null;
-    const enforcedCount = (readings24h ?? []).filter((r) => r.event === "guest_max_enforced").length;
+    const enforcedCount = (readings24h ?? []).filter(
+      (r) => r.event === "guest_max_enforced" || r.event === "max_hold_expired",
+    ).length;
 
     const ts = thermostats ?? [];
     const avgSp = ts.length
