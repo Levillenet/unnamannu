@@ -203,13 +203,20 @@ function ThermostatPage() {
             {t.zone === "bathroom" ? "Kylpyhuone" : "Huone"} · ID {t.ebeco_device_id}
           </p>
         </div>
-        {t.status === "online" ? (
-          <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
-        ) : t.status === "offline" ? (
-          <Badge variant="secondary">Offline</Badge>
-        ) : (
-          <Badge variant="destructive">Hälytys</Badge>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {t.status === "online" ? (
+            <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
+          ) : t.status === "offline" ? (
+            <Badge variant="secondary">Offline</Badge>
+          ) : (
+            <Badge variant="destructive">Hälytys</Badge>
+          )}
+          {t.status !== "online" && lastSeenAt && (
+            <span className="text-xs text-muted-foreground">
+              Viimeksi online {lastSeenLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       {lastEnforced && (
