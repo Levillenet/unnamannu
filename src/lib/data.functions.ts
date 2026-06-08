@@ -552,6 +552,16 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
 
 // ---------- DEVICES (Ebeco sync + allocation) ----------
 
+// Ebeco's API does not always return an explicit `online` boolean. When a device
+// loses contact it instead sets `hasError: true` with an errorMessage like
+// "Device is offline...". Treat any of those signals as offline.
+function isEbecoOffline(d: { online?: boolean; hasError?: boolean; errorMessage?: string | null }): boolean {
+  if (d.online === false) return true;
+  if (d.hasError === true) return true;
+  if (typeof d.errorMessage === "string" && /offline/i.test(d.errorMessage)) return true;
+  return false;
+}
+
 // Syncs the Ebeco account's device list into public.thermostats keyed by ebeco_device_id.
 // Upserts new devices (apartment_id = null → allocate later from Laitteet view),
 // refreshes status, current_setpoint, last_seen_at for known ones, and logs one
