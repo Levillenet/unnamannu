@@ -25,6 +25,7 @@ import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authentic
 import { Route as ApiPublicEnforceLimitsRouteImport } from './routes/api/public/enforce-limits'
 import { Route as AuthenticatedThermostatsIdRouteImport } from './routes/_authenticated.thermostats.$id'
 import { Route as AuthenticatedApartmentsIdRouteImport } from './routes/_authenticated.apartments.$id'
+import { Route as ApiPublicHooksEbecoSyncRouteImport } from './routes/api/public/hooks/ebeco-sync'
 
 const SetPasswordRoute = SetPasswordRouteImport.update({
   id: '/set-password',
@@ -108,6 +109,11 @@ const AuthenticatedApartmentsIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedApartmentsRoute,
   } as any)
+const ApiPublicHooksEbecoSyncRoute = ApiPublicHooksEbecoSyncRouteImport.update({
+  id: '/api/public/hooks/ebeco-sync',
+  path: '/api/public/hooks/ebeco-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
   '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
+  '/api/public/hooks/ebeco-sync': typeof ApiPublicHooksEbecoSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
   '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
+  '/api/public/hooks/ebeco-sync': typeof ApiPublicHooksEbecoSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/_authenticated/apartments/$id': typeof AuthenticatedApartmentsIdRoute
   '/_authenticated/thermostats/$id': typeof AuthenticatedThermostatsIdRoute
   '/api/public/enforce-limits': typeof ApiPublicEnforceLimitsRoute
+  '/api/public/hooks/ebeco-sync': typeof ApiPublicHooksEbecoSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/apartments/$id'
     | '/thermostats/$id'
     | '/api/public/enforce-limits'
+    | '/api/public/hooks/ebeco-sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/apartments/$id'
     | '/thermostats/$id'
     | '/api/public/enforce-limits'
+    | '/api/public/hooks/ebeco-sync'
   id:
     | '__root__'
     | '/'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/_authenticated/apartments/$id'
     | '/_authenticated/thermostats/$id'
     | '/api/public/enforce-limits'
+    | '/api/public/hooks/ebeco-sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SetPasswordRoute: typeof SetPasswordRoute
   ApiPublicEnforceLimitsRoute: typeof ApiPublicEnforceLimitsRoute
+  ApiPublicHooksEbecoSyncRoute: typeof ApiPublicHooksEbecoSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -340,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApartmentsIdRouteImport
       parentRoute: typeof AuthenticatedApartmentsRoute
     }
+    '/api/public/hooks/ebeco-sync': {
+      id: '/api/public/hooks/ebeco-sync'
+      path: '/api/public/hooks/ebeco-sync'
+      fullPath: '/api/public/hooks/ebeco-sync'
+      preLoaderRoute: typeof ApiPublicHooksEbecoSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -392,7 +412,18 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SetPasswordRoute: SetPasswordRoute,
   ApiPublicEnforceLimitsRoute: ApiPublicEnforceLimitsRoute,
+  ApiPublicHooksEbecoSyncRoute: ApiPublicHooksEbecoSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
