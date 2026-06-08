@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { seedDemoData } from "@/lib/seed.functions";
 import {
-  listUsers, inviteUser, updateUserRole, removeUser, listAuditLog, sendPasswordReset, resendInvite,
+  listUsers, createUserWithTempPassword, updateUserRole, removeUser, listAuditLog, resetUserPassword,
 } from "@/lib/users.functions";
 import { useCurrentRole, currentRoleQueryOptions } from "@/hooks/use-current-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Database, Cloud, Users, ScrollText, Mail, Trash2, KeyRound, Plus, Send } from "lucide-react";
+import { Database, Cloud, Users, ScrollText, Trash2, KeyRound, Plus, Copy, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   loader: ({ context }) => context.queryClient.ensureQueryData(currentRoleQueryOptions),
