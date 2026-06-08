@@ -38,7 +38,20 @@ function AuthenticatedLayout() {
   const qc = useQueryClient();
   const enforce = useServerFn(enforceThermostatLimits);
   const sync = useServerFn(syncEbecoDevices);
+  const mustChangeFn = useServerFn(getMustChangePassword);
   const runningRef = useRef(false);
+
+  // Pakota väliaikaisen salasanan vaihto ennen sovelluksen käyttöä
+  const mustChangeQ = useQuery({
+    queryKey: ["must-change-password"],
+    queryFn: () => mustChangeFn(),
+    staleTime: 60_000,
+  });
+  useEffect(() => {
+    if (mustChangeQ.data?.mustChange) {
+      navigate({ to: "/set-password", replace: true });
+    }
+  }, [mustChangeQ.data?.mustChange, navigate]);
 
   useEffect(() => {
     setMobileOpen(false);
