@@ -104,8 +104,8 @@ function SetPasswordPage() {
   }, []);
 
   const submit = async () => {
-    if (password.length < 8) {
-      toast.error("Salasanan tulee olla vähintään 8 merkkiä");
+    if (password.length < 1) {
+      toast.error("Anna salasana");
       return;
     }
     if (password !== confirm) {
