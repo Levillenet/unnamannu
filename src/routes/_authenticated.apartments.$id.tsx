@@ -73,6 +73,11 @@ function ThermostatCard({ t }: { t: any }) {
           <div className="mt-2 text-xs text-muted-foreground">
             Asiakkaan max {Number(t.guest_max_setpoint).toFixed(1)} °C
           </div>
+          {t.status !== "online" && t.last_seen_at && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Viimeksi online: {new Date(t.last_seen_at as string).toLocaleString("fi-FI")}
+            </div>
+          )}
           {t.schedules && (
             <div className="mt-1 text-xs text-muted-foreground">Ohjelma: {t.schedules.name}</div>
           )}
