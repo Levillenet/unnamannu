@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { seedDemoData } from "@/lib/seed.functions";
 import {
-  listUsers, inviteUser, updateUserRole, removeUser, listAuditLog, sendPasswordReset,
+  listUsers, inviteUser, updateUserRole, removeUser, listAuditLog, sendPasswordReset, resendInvite,
 } from "@/lib/users.functions";
 import { useCurrentRole, currentRoleQueryOptions } from "@/hooks/use-current-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Database, Cloud, Users, ScrollText, Mail, Trash2, KeyRound, Plus } from "lucide-react";
+import { Database, Cloud, Users, ScrollText, Mail, Trash2, KeyRound, Plus, Send } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   loader: ({ context }) => context.queryClient.ensureQueryData(currentRoleQueryOptions),
@@ -77,6 +77,7 @@ function UsersTab() {
   const updateRole = useServerFn(updateUserRole);
   const remove = useServerFn(removeUser);
   const reset = useServerFn(sendPasswordReset);
+  const resend = useServerFn(resendInvite);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["users"], queryFn: () => list() });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
@@ -85,6 +86,7 @@ function UsersTab() {
   const roleM = useMutation({ mutationFn: updateRole, onSuccess: () => { refresh(); toast.success("Rooli päivitetty"); }, onError: (e: Error) => toast.error(e.message) });
   const removeM = useMutation({ mutationFn: remove, onSuccess: () => { refresh(); toast.success("Käyttäjä poistettu"); }, onError: (e: Error) => toast.error(e.message) });
   const resetM = useMutation({ mutationFn: reset, onSuccess: () => toast.success("Palautuslinkki lähetetty"), onError: (e: Error) => toast.error(e.message) });
+  const resendM = useMutation({ mutationFn: resend, onSuccess: () => toast.success("Kutsu lähetetty uudelleen"), onError: (e: Error) => toast.error(e.message) });
 
   return (
     <Card>
@@ -114,6 +116,7 @@ function UsersTab() {
                     </td>
                     <td className="py-2 pr-3 text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("fi-FI") : "—"}</td>
                     <td className="py-2 pr-3 text-right">
+                      <Button size="sm" variant="ghost" title="Lähetä kutsu uudelleen" onClick={() => resendM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><Send className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" title="Lähetä salasanan palautus" onClick={() => resetM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><KeyRound className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" title="Poista käyttäjä" onClick={() => { if (confirm(`Poista käyttäjä ${u.email}?`)) removeM.mutate({ data: { userId: u.id } }); }}><Trash2 className="h-4 w-4" /></Button>
                     </td>
