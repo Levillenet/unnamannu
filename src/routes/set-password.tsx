@@ -157,6 +157,9 @@ function SetPasswordPage() {
                 <div className="space-y-2">
                   <Label htmlFor="pw">Uusi salasana</Label>
                   <Input id="pw" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={!ready} />
+                  <p className="text-xs text-muted-foreground">
+                    Vähintään 6 merkkiä. Älä käytä yleisiä salasanoja (esim. "salasana", "123456", "qwerty").
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pw2">Vahvista salasana</Label>
