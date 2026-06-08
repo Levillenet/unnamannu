@@ -116,6 +116,7 @@ function UsersTab() {
                     </td>
                     <td className="py-2 pr-3 text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("fi-FI") : "—"}</td>
                     <td className="py-2 pr-3 text-right">
+                      <Button size="sm" variant="ghost" title="Lähetä kutsu uudelleen" onClick={() => resendM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><Send className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" title="Lähetä salasanan palautus" onClick={() => resetM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><KeyRound className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" title="Poista käyttäjä" onClick={() => { if (confirm(`Poista käyttäjä ${u.email}?`)) removeM.mutate({ data: { userId: u.id } }); }}><Trash2 className="h-4 w-4" /></Button>
                     </td>
