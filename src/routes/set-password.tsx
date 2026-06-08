@@ -116,6 +116,9 @@ function SetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      // Nollaa pakotettu vaihto -lippu (jos asetettu adminin toimesta)
+      try { await complete(); } catch { /* ei kriittinen */ }
+      qc.invalidateQueries({ queryKey: ["must-change-password"] });
       toast.success("Salasana asetettu. Tervetuloa!");
       navigate({ to: "/", replace: true });
     } catch (e: unknown) {
