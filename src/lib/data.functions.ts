@@ -554,7 +554,7 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
 
 // Shared sync logic lives in ebeco-sync.server.ts so the cron hook can
 // reuse it with the admin client.
-import { syncEbecoIntoSupabase } from "./ebeco-sync.server";
+import { syncEbecoIntoSupabase, isEbecoOffline } from "./ebeco-sync.server";
 
 // Syncs the Ebeco account's device list into public.thermostats keyed by ebeco_device_id.
 // Called from the browser (every 60 s while admin is viewing the app) and indirectly
