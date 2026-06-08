@@ -552,134 +552,29 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
 
 // ---------- DEVICES (Ebeco sync + allocation) ----------
 
-// Ebeco's API does not always return an explicit `online` boolean. When a device
-// loses contact it instead sets `hasError: true` with an errorMessage like
-// "Device is offline...". Treat any of those signals as offline.
-function isEbecoOffline(d: { online?: boolean; hasError?: boolean; errorMessage?: string | null }): boolean {
-  if (d.online === false) return true;
-  if (d.hasError === true) return true;
-  if (typeof d.errorMessage === "string" && /offline/i.test(d.errorMessage)) return true;
-  return false;
-}
+// Shared sync logic lives in ebeco-sync.server.ts so the cron hook can
+// reuse it with the admin client.
+import { syncEbecoIntoSupabase, isEbecoOffline } from "./ebeco-sync.server";
 
 // Syncs the Ebeco account's device list into public.thermostats keyed by ebeco_device_id.
-// Upserts new devices (apartment_id = null → allocate later from Laitteet view),
-// refreshes status, current_setpoint, last_seen_at for known ones, and logs one
-// reading per device into thermostat_readings.
+// Called from the browser (every 60 s while admin is viewing the app) and indirectly
+// from the pg_cron hook every 5 minutes.
 export const syncEbecoDevices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
-
-    const devices = await fetchDevicesDetailed();
-
-    const { data: existing } = await supabase
-      .from("thermostats")
-      .select("id,ebeco_device_id");
-    const existingByEbecoId = new Map<string, string>(
-      (existing ?? [])
-        .filter((t) => t.ebeco_device_id)
-        .map((t) => [String(t.ebeco_device_id), t.id]),
-    );
-
-    let created = 0;
-    let updated = 0;
-    const nowIso = new Date().toISOString();
-    const readingsToInsert: Array<{
-      thermostat_id: string;
-      ts: string;
-      setpoint: number | null;
-      room_temp: number | null;
-      floor_temp: number | null;
-    }> = [];
-
-    for (const d of devices) {
-      const ebecoId = String(d.id);
-      const status: "online" | "offline" = isEbecoOffline(d) ? "offline" : "online";
-      const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
-      const existingId = existingByEbecoId.get(ebecoId);
-
-      // Build column patch from any Ebeco fields present on the device.
-      const ebecoCols = ebecoPatchToColumns(d as unknown as EbecoPatch);
-
-      if (existingId) {
-        const patch: Record<string, unknown> = {
-          status,
-          ebeco_settings: d as unknown as Record<string, unknown>,
-          ...ebecoCols,
-        };
-        // Only refresh last_seen_at when the device is actually reachable.
-        if (status === "online") patch.last_seen_at = nowIso;
-        if (setpoint != null) patch.current_setpoint = setpoint;
-        const { error } = await (supabase.from("thermostats") as any).update(patch).eq("id", existingId);
-        if (error) throw new Error(error.message);
-        updated += 1;
-
-        readingsToInsert.push({
-          thermostat_id: existingId,
-          ts: nowIso,
-          setpoint,
-          room_temp: pickRoomTemp(d),
-          floor_temp: pickFloorTemp(d),
-        });
-      } else {
-        const { data: ins, error } = await (supabase.from("thermostats") as any)
-          .insert({
-            ebeco_device_id: ebecoId,
-            name: d.displayName ?? `EB-${ebecoId}`,
-            zone: "room",
-            apartment_id: null,
-            status,
-            current_setpoint: setpoint ?? 21,
-            last_seen_at: nowIso,
-            ebeco_settings: d as unknown as Record<string, unknown>,
-            ...ebecoCols,
-          })
-          .select("id")
-          .single();
-
-        if (error) throw new Error(error.message);
-        if (!ins?.id) continue;
-        created += 1;
-        readingsToInsert.push({
-          thermostat_id: ins.id,
-          ts: nowIso,
-          setpoint,
-          room_temp: pickRoomTemp(d),
-          floor_temp: pickFloorTemp(d),
-        });
-      }
-
-    }
-
-    const validReadings = readingsToInsert.filter((r) => !!r.thermostat_id);
-    if (validReadings.length > 0) {
-      const ids = Array.from(new Set(validReadings.map((r) => r.thermostat_id)));
-      const { data: confirmed } = await supabase
-        .from("thermostats")
-        .select("id")
-        .in("id", ids);
-      const confirmedIds = new Set((confirmed ?? []).map((t) => t.id));
-      const safeReadings = validReadings.filter((r) => confirmedIds.has(r.thermostat_id));
-      if (safeReadings.length > 0) {
-        const { error: readingsError } = await supabase
-          .from("thermostat_readings")
-          .insert(safeReadings);
-        if (readingsError) {
-          console.error("[syncEbecoDevices] readings insert failed:", readingsError.message);
-        }
-      }
-    }
+    const result = await syncEbecoIntoSupabase(supabase);
 
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: "ebeco.sync",
       entity_type: "ebeco",
       entity_id: null,
-      details: { total: devices.length, created, updated },
+      details: { total: result.total, created: result.created, updated: result.updated },
     });
 
-    return { created, updated, total: devices.length };
+    return result;
   });
+
 
 
 export const listDevices = createServerFn({ method: "GET" })
