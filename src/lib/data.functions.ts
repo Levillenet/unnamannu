@@ -552,6 +552,16 @@ export const deleteZoneDefault = createServerFn({ method: "POST" })
 
 // ---------- DEVICES (Ebeco sync + allocation) ----------
 
+// Ebeco's API does not always return an explicit `online` boolean. When a device
+// loses contact it instead sets `hasError: true` with an errorMessage like
+// "Device is offline...". Treat any of those signals as offline.
+function isEbecoOffline(d: { online?: boolean; hasError?: boolean; errorMessage?: string | null }): boolean {
+  if (d.online === false) return true;
+  if (d.hasError === true) return true;
+  if (typeof d.errorMessage === "string" && /offline/i.test(d.errorMessage)) return true;
+  return false;
+}
+
 // Syncs the Ebeco account's device list into public.thermostats keyed by ebeco_device_id.
 // Upserts new devices (apartment_id = null → allocate later from Laitteet view),
 // refreshes status, current_setpoint, last_seen_at for known ones, and logs one
@@ -585,7 +595,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
 
     for (const d of devices) {
       const ebecoId = String(d.id);
-      const status: "online" | "offline" = d.online === false ? "offline" : "online";
+      const status: "online" | "offline" = isEbecoOffline(d) ? "offline" : "online";
       const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
       const existingId = existingByEbecoId.get(ebecoId);
 
@@ -594,11 +604,12 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
 
       if (existingId) {
         const patch: Record<string, unknown> = {
-          last_seen_at: nowIso,
           status,
           ebeco_settings: d as unknown as Record<string, unknown>,
           ...ebecoCols,
         };
+        // Only refresh last_seen_at when the device is actually reachable.
+        if (status === "online") patch.last_seen_at = nowIso;
         if (setpoint != null) patch.current_setpoint = setpoint;
         const { error } = await (supabase.from("thermostats") as any).update(patch).eq("id", existingId);
         if (error) throw new Error(error.message);
@@ -811,15 +822,15 @@ async function pushPatchToTargets(
           const detail = byEbecoId.get(ebecoId);
           if (!detail) return;
           const cols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
-          const status: "online" | "offline" = detail.online === false ? "offline" : "online";
+          const status: "online" | "offline" = isEbecoOffline(detail) ? "offline" : "online";
           const setpoint =
             typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
           const rowPatch: Record<string, unknown> = {
-            last_seen_at: nowIso,
             status,
             ebeco_settings: detail as unknown as Record<string, unknown>,
             ...cols,
           };
+          if (status === "online") rowPatch.last_seen_at = nowIso;
           if (setpoint != null) rowPatch.current_setpoint = setpoint;
           const { error: upErr } = await (supabase.from("thermostats") as any)
             .update(rowPatch)
@@ -955,15 +966,15 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
 
     const ebecoCols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
     const nowIso = new Date().toISOString();
-    const status: "online" | "offline" = detail.online === false ? "offline" : "online";
+    const status: "online" | "offline" = isEbecoOffline(detail) ? "offline" : "online";
     const setpoint = typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
 
     const patch: Record<string, unknown> = {
-      last_seen_at: nowIso,
       status,
       ebeco_settings: detail as unknown as Record<string, unknown>,
       ...ebecoCols,
     };
+    if (status === "online") patch.last_seen_at = nowIso;
     if (setpoint != null) patch.current_setpoint = setpoint;
 
     const { error } = await (supabase.from("thermostats") as any)
