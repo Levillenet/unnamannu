@@ -585,7 +585,7 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
 
     for (const d of devices) {
       const ebecoId = String(d.id);
-      const status: "online" | "offline" = d.online === false ? "offline" : "online";
+      const status: "online" | "offline" = isEbecoOffline(d) ? "offline" : "online";
       const setpoint = typeof d.temperatureSet === "number" ? d.temperatureSet : null;
       const existingId = existingByEbecoId.get(ebecoId);
 
@@ -594,11 +594,12 @@ export const syncEbecoDevices = createServerFn({ method: "POST" })
 
       if (existingId) {
         const patch: Record<string, unknown> = {
-          last_seen_at: nowIso,
           status,
           ebeco_settings: d as unknown as Record<string, unknown>,
           ...ebecoCols,
         };
+        // Only refresh last_seen_at when the device is actually reachable.
+        if (status === "online") patch.last_seen_at = nowIso;
         if (setpoint != null) patch.current_setpoint = setpoint;
         const { error } = await (supabase.from("thermostats") as any).update(patch).eq("id", existingId);
         if (error) throw new Error(error.message);
