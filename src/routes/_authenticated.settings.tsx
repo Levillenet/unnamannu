@@ -71,29 +71,38 @@ function GeneralTab() {
   );
 }
 
+type TempCred = { email: string; tempPassword: string } | null;
+
 function UsersTab() {
   const list = useServerFn(listUsers);
-  const invite = useServerFn(inviteUser);
+  const create = useServerFn(createUserWithTempPassword);
   const updateRole = useServerFn(updateUserRole);
   const remove = useServerFn(removeUser);
-  const reset = useServerFn(sendPasswordReset);
-  const resend = useServerFn(resendInvite);
+  const resetPw = useServerFn(resetUserPassword);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["users"], queryFn: () => list() });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
+  const [credModal, setCredModal] = useState<TempCred>(null);
 
-  const inviteM = useMutation({ mutationFn: invite, onSuccess: () => { refresh(); toast.success("Kutsu lähetetty"); }, onError: (e: Error) => toast.error(e.message) });
+  const createM = useMutation({
+    mutationFn: create,
+    onSuccess: (r) => { refresh(); setCredModal({ email: r.email, tempPassword: r.tempPassword }); toast.success("Käyttäjä luotu"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const roleM = useMutation({ mutationFn: updateRole, onSuccess: () => { refresh(); toast.success("Rooli päivitetty"); }, onError: (e: Error) => toast.error(e.message) });
   const removeM = useMutation({ mutationFn: remove, onSuccess: () => { refresh(); toast.success("Käyttäjä poistettu"); }, onError: (e: Error) => toast.error(e.message) });
-  const resetM = useMutation({ mutationFn: reset, onSuccess: () => toast.success("Palautuslinkki lähetetty"), onError: (e: Error) => toast.error(e.message) });
-  const resendM = useMutation({ mutationFn: resend, onSuccess: () => toast.success("Kutsu lähetetty uudelleen"), onError: (e: Error) => toast.error(e.message) });
+  const resetM = useMutation({
+    mutationFn: resetPw,
+    onSuccess: (r) => { if (r.email) setCredModal({ email: r.email, tempPassword: r.tempPassword }); toast.success("Salasana nollattu"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-base">
           <span className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Käyttäjät</span>
-          <InviteDialog onInvite={(email, role) => inviteM.mutate({ data: { email, role, redirectTo: `${window.location.origin}/set-password` } })} pending={inviteM.isPending} />
+          <CreateUserDialog onCreate={(email, role) => createM.mutate({ data: { email, role } })} pending={createM.isPending} />
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -116,8 +125,7 @@ function UsersTab() {
                     </td>
                     <td className="py-2 pr-3 text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("fi-FI") : "—"}</td>
                     <td className="py-2 pr-3 text-right">
-                      <Button size="sm" variant="ghost" title="Lähetä kutsu uudelleen" onClick={() => resendM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><Send className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" title="Lähetä salasanan palautus" onClick={() => resetM.mutate({ data: { email: u.email, redirectTo: `${window.location.origin}/set-password` } })}><KeyRound className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" title="Nollaa salasana (luo uusi väliaikainen)" onClick={() => { if (confirm(`Nollaa käyttäjän ${u.email} salasana? Näet uuden väliaikaisen salasanan, jonka voit välittää käyttäjälle.`)) resetM.mutate({ data: { userId: u.id } }); }}><KeyRound className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" title="Poista käyttäjä" onClick={() => { if (confirm(`Poista käyttäjä ${u.email}?`)) removeM.mutate({ data: { userId: u.id } }); }}><Trash2 className="h-4 w-4" /></Button>
                     </td>
                   </tr>
@@ -127,20 +135,22 @@ function UsersTab() {
           </div>
         )}
       </CardContent>
+      <TempPasswordModal cred={credModal} onClose={() => setCredModal(null)} />
     </Card>
   );
 }
 
-function InviteDialog({ onInvite, pending }: { onInvite: (email: string, role: "admin" | "user") => void; pending: boolean }) {
+function CreateUserDialog({ onCreate, pending }: { onCreate: (email: string, role: "admin" | "user") => void; pending: boolean }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "user">("user");
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button size="sm"><Plus className="mr-1 h-4 w-4" /> Kutsu käyttäjä</Button></DialogTrigger>
+      <DialogTrigger asChild><Button size="sm"><Plus className="mr-1 h-4 w-4" /> Lisää käyttäjä</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Kutsu uusi käyttäjä</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Lisää uusi käyttäjä</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Järjestelmä luo tilin ja generoi väliaikaisen salasanan. Näet sen seuraavalla näytöllä ja välität sen käyttäjälle itse (esim. WhatsApp). Käyttäjä vaihtaa sen omakseen ensikirjautumisen yhteydessä.</p>
           <div><Label>Sähköposti</Label><Input className="mt-1" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <div><Label>Rooli</Label>
             <Select value={role} onValueChange={(v) => setRole(v as "admin" | "user")}>
@@ -154,7 +164,51 @@ function InviteDialog({ onInvite, pending }: { onInvite: (email: string, role: "
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Peruuta</Button>
-          <Button disabled={pending || !email} onClick={() => { onInvite(email, role); setOpen(false); setEmail(""); }}><Mail className="mr-2 h-4 w-4" /> Lähetä kutsu</Button>
+          <Button disabled={pending || !email} onClick={() => { onCreate(email, role); setOpen(false); setEmail(""); }}><Plus className="mr-2 h-4 w-4" /> Luo käyttäjä</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TempPasswordModal({ cred, onClose }: { cred: TempCred; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const open = cred !== null;
+  const copy = async () => {
+    if (!cred) return;
+    try {
+      await navigator.clipboard.writeText(cred.tempPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Kopiointi epäonnistui — kopioi käsin");
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setCopied(false); onClose(); } }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Väliaikainen salasana</DialogTitle></DialogHeader>
+        {cred && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Välitä nämä tunnukset käyttäjälle itse (esim. WhatsApp, puhelu, kasvotusten). <strong>Salasana näytetään vain kerran</strong> — sulkemisen jälkeen sitä ei voi enää nähdä, mutta voit nollata uuden milloin vain.</p>
+            <div className="space-y-1">
+              <Label>Sähköposti</Label>
+              <div className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm">{cred.email}</div>
+            </div>
+            <div className="space-y-1">
+              <Label>Väliaikainen salasana</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-md border bg-muted/40 px-3 py-2 font-mono text-base tracking-wider">{cred.tempPassword}</div>
+                <Button size="icon" variant="outline" onClick={copy} aria-label="Kopioi salasana">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Käyttäjä kirjautuu osoitteessa <code>{typeof window !== "undefined" ? window.location.origin : ""}/login</code> ja ohjataan automaattisesti vaihtamaan salasana.</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={onClose}>Valmis</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
