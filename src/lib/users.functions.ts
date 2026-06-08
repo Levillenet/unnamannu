@@ -81,45 +81,117 @@ export const listUsers = createServerFn({ method: "GET" })
     });
   });
 
-export const inviteUser = createServerFn({ method: "POST" })
+// Generate a readable but strong temporary password (avoid ambiguous chars)
+function generateTempPassword(length = 14): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < length; i++) out += alphabet[bytes[i] % alphabet.length];
+  // Ensure at least one digit and one upper/lower to satisfy common rules
+  return out + "!9Aa".slice(0, 4);
+}
+
+export const createUserWithTempPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
       email: z.string().trim().email().max(255),
       role: RoleSchema,
-      redirectTo: z.string().url(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId, claims } = context;
     const { data: isAdminData } = await supabase.rpc("is_admin", { _user_id: userId });
-    if (!isAdminData) throw new Error("Vain admin voi kutsua käyttäjiä");
+    if (!isAdminData) throw new Error("Vain admin voi luoda käyttäjiä");
 
-    const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: data.redirectTo,
+    const tempPassword = generateTempPassword();
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: tempPassword,
+      email_confirm: true,
     });
     if (error) throw new Error(error.message);
-    const newUserId = invited.user?.id;
-    if (!newUserId) throw new Error("Kutsu epäonnistui");
+    const newUserId = created.user?.id;
+    if (!newUserId) throw new Error("Käyttäjän luonti epäonnistui");
 
-    // Ensure profile row exists (trigger should handle this, belt+braces)
     await supabaseAdmin
       .from("profiles")
-      .upsert({ id: newUserId, email: data.email }, { onConflict: "id" });
+      .upsert(
+        { id: newUserId, email: data.email, must_change_password: true },
+        { onConflict: "id" },
+      );
 
-    // Assign role
     await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: newUserId, role: data.role });
 
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
-      action: "user.invite",
+      action: "user.create",
       entity_type: "user",
       entity_id: newUserId,
       details: { email: data.email, role: data.role },
     });
 
-    return { ok: true, userId: newUserId };
+    return { ok: true, userId: newUserId, email: data.email, tempPassword };
+  });
+
+export const resetUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ userId: z.string().uuid() }).parse)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: isAdminData } = await supabase.rpc("is_admin", { _user_id: userId });
+    if (!isAdminData) throw new Error("Vain admin voi nollata salasanan");
+
+    const tempPassword = generateTempPassword();
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: tempPassword,
+    });
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: true })
+      .eq("id", data.userId);
+
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", data.userId)
+      .maybeSingle();
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "user.password_reset_admin",
+      entity_type: "user",
+      entity_id: data.userId,
+      details: { email: prof?.email ?? null },
+    });
+
+    return { ok: true, email: prof?.email ?? null, tempPassword };
+  });
+
+export const completePasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: false })
+      .eq("id", userId);
+    return { ok: true };
+  });
+
+export const getMustChangePassword = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("must_change_password")
+      .eq("id", userId)
+      .maybeSingle();
+    return { mustChange: Boolean(data?.must_change_password) };
   });
 
 export const updateUserRole = createServerFn({ method: "POST" })
