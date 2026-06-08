@@ -966,15 +966,15 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
 
     const ebecoCols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
     const nowIso = new Date().toISOString();
-    const status: "online" | "offline" = detail.online === false ? "offline" : "online";
+    const status: "online" | "offline" = isEbecoOffline(detail) ? "offline" : "online";
     const setpoint = typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
 
     const patch: Record<string, unknown> = {
-      last_seen_at: nowIso,
       status,
       ebeco_settings: detail as unknown as Record<string, unknown>,
       ...ebecoCols,
     };
+    if (status === "online") patch.last_seen_at = nowIso;
     if (setpoint != null) patch.current_setpoint = setpoint;
 
     const { error } = await (supabase.from("thermostats") as any)
