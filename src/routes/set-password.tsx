@@ -1,6 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { completePasswordChange } from "@/lib/users.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +19,8 @@ type RecoveryType = "recovery" | "invite" | "signup" | "magiclink" | "email_chan
 
 function SetPasswordPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const complete = useServerFn(completePasswordChange);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -111,6 +116,9 @@ function SetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      // Nollaa pakotettu vaihto -lippu (jos asetettu adminin toimesta)
+      try { await complete(); } catch { /* ei kriittinen */ }
+      qc.invalidateQueries({ queryKey: ["must-change-password"] });
       toast.success("Salasana asetettu. Tervetuloa!");
       navigate({ to: "/", replace: true });
     } catch (e: unknown) {

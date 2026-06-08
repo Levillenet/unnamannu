@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
 import { enforceThermostatLimits } from "@/lib/enforcement.functions";
 import { syncEbecoDevices } from "@/lib/data.functions";
+import { getMustChangePassword } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -37,7 +38,20 @@ function AuthenticatedLayout() {
   const qc = useQueryClient();
   const enforce = useServerFn(enforceThermostatLimits);
   const sync = useServerFn(syncEbecoDevices);
+  const mustChangeFn = useServerFn(getMustChangePassword);
   const runningRef = useRef(false);
+
+  // Pakota väliaikaisen salasanan vaihto ennen sovelluksen käyttöä
+  const mustChangeQ = useQuery({
+    queryKey: ["must-change-password"],
+    queryFn: () => mustChangeFn(),
+    staleTime: 60_000,
+  });
+  useEffect(() => {
+    if (mustChangeQ.data?.mustChange) {
+      navigate({ to: "/set-password", replace: true });
+    }
+  }, [mustChangeQ.data?.mustChange, navigate]);
 
   useEffect(() => {
     setMobileOpen(false);
