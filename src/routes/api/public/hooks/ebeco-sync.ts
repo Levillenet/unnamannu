@@ -27,9 +27,9 @@ export const Route = createFileRoute("/api/public/hooks/ebeco-sync")({
           const { syncEbecoIntoSupabase } = await import("@/lib/ebeco-sync.server");
           const result = await syncEbecoIntoSupabase(supabaseAdmin);
 
-          await supabaseAdmin.from("audit_log").insert({
+          await (supabaseAdmin.from("audit_log") as any).insert({
             user_id: null,
-            actor_email: "cron@ebeco-sync",
+            user_email: "cron@ebeco-sync",
             action: "ebeco.sync.cron",
             entity_type: "ebeco",
             entity_id: null,
