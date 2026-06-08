@@ -87,9 +87,6 @@ function UsersTab() {
   const removeM = useMutation({ mutationFn: remove, onSuccess: () => { refresh(); toast.success("Käyttäjä poistettu"); }, onError: (e: Error) => toast.error(e.message) });
   const resetM = useMutation({ mutationFn: reset, onSuccess: () => toast.success("Palautuslinkki lähetetty"), onError: (e: Error) => toast.error(e.message) });
   const resendM = useMutation({ mutationFn: resend, onSuccess: () => toast.success("Kutsu lähetetty uudelleen"), onError: (e: Error) => toast.error(e.message) });
-  const roleM = useMutation({ mutationFn: updateRole, onSuccess: () => { refresh(); toast.success("Rooli päivitetty"); }, onError: (e: Error) => toast.error(e.message) });
-  const removeM = useMutation({ mutationFn: remove, onSuccess: () => { refresh(); toast.success("Käyttäjä poistettu"); }, onError: (e: Error) => toast.error(e.message) });
-  const resetM = useMutation({ mutationFn: reset, onSuccess: () => toast.success("Palautuslinkki lähetetty"), onError: (e: Error) => toast.error(e.message) });
 
   return (
     <Card>
