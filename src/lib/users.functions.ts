@@ -312,25 +312,3 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const resendInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    z.object({ email: z.string().email(), redirectTo: z.string().url() }).parse,
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId, claims } = context;
-    const { data: isAdminData } = await supabase.rpc("is_admin", { _user_id: userId });
-    if (!isAdminData) throw new Error("Vain admin voi lähettää kutsuja uudelleen");
-
-    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: data.redirectTo,
-    });
-    if (error) throw new Error(error.message);
-
-    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
-      action: "user.invite_resent",
-      entity_type: "user",
-      details: { email: data.email },
-    });
-    return { ok: true };
-  });
