@@ -1,32 +1,42 @@
-## Tausta
+## Tavoite
 
-Tällä hetkellä `syncEbecoDevices` ajetaan vain selaimessa, kun admin on kirjautuneena ja `_authenticated`-näkymä on auki (interval 60 s tiedostossa `src/routes/_authenticated.tsx`). Jos kukaan ei ole appissa, mitään ei synkronoida — siksi A2OH:n offline-tila ei päivittynyt viikkoon. Tämä korjaa sen ajamalla synkan palvelinpuolella ajastetusti.
+Admin luo käyttäjätilin järjestelmässä ilman sähköpostikutsua. Käyttäjä saa väliaikaisen salasanan adminilta itseltään (esim. WhatsApp) ja vaihtaa sen ensikirjautumisen yhteydessä omaan. "Unohdin salasanani" -toiminto käyttäjälle säilyy.
 
-## Mitä rakennetaan
+## Uusi flow
 
-1. **Uusi julkinen hook-reitti** `src/routes/api/public/hooks/ebeco-sync.ts`
-   - `POST`-handler, joka tarkistaa `apikey`-headerista Supabasen anon-avaimen.
-   - Kutsuu samaa Ebeco-sync-logiikkaa kuin nykyinen `syncEbecoDevices`-server function, mutta palveluroolilla (`supabaseAdmin`), koska kutsujana ei ole kirjautunutta käyttäjää.
-   - Siirretään nykyinen synkronoinnin sisältö jaettuun apuriin `src/lib/ebeco-sync.server.ts`, jonka sekä alkuperäinen `syncEbecoDevices` että uusi hook käyttävät — näin logiikka pysyy yhtenä paikkana.
+1. Admin avaa "Lisää käyttäjä" -dialogin → syöttää sähköpostin, roolin ja muut nykyiset kentät.
+2. Server function luo auth-käyttäjän valmiiksi vahvistettuna (`email_confirm: true`) ja generoi turvallisen 12-merkkisen väliaikaisen salasanan. Asettaa `profiles.must_change_password = true`.
+3. Adminille näytetään **modaali**: sähköposti + väliaikainen salasana + "Kopioi" -nappi + huomautus "Salasana näytetään vain kerran". Admin välittää sen käyttäjälle haluamallaan tavalla.
+4. Käyttäjä menee `/auth`-sivulle, kirjautuu sähköpostilla + väliaikaisella salasanalla.
+5. `_authenticated/route.tsx` -gate tarkistaa `must_change_password`-lipun ja ohjaa `/set-password`-sivulle. Käyttäjä asettaa oman salasanansa → lippu nollataan → ohjataan etusivulle.
+6. Käyttäjälle jää näkyviin **"Unohdin salasanani"** -linkki `/auth`-sivulle (toimii nykyisellä `resetPasswordForEmail`-kutsulla — huom. tämä vaatii edelleen sähköpostin toimivuuden ollakseen luotettava, mutta jätetään varatoiminnoksi).
 
-2. **pg_cron-ajastus** joka 5 min
-   - Käytetään `pg_cron` + `pg_net`. Molemmat extensionit ovat valmiina projektissa (cron-jobi `enforce-thermostat-overrides` toimii jo joka minuutti).
-   - Ajastus lisätään `supabase--insert`-työkalulla (ei migraationa, koska sisältää projektikohtaisen URL:n ja anon-avaimen):
-     ```
-     cron.schedule('ebeco-sync-5min', '*/5 * * * *', net.http_post(...))
-     ```
-   - Kutsuu URL:ää `https://project--f9410954-fa6f-4161-babd-ac3c51162c1d.lovable.app/api/public/hooks/ebeco-sync` headerilla `apikey: <anon>` ja tyhjällä bodylla.
+## Adminin työkalut käyttäjäkortilla
 
-3. **Pieni siivous selainpuolella**
-   - Nykyinen 60 s selainsynkka jätetään ennalleen — siitä on hyötyä kun admin katsoo dashboardia ja haluaa tuoreemman datan kuin 5 min vanhan.
-   - Ei muita UI-muutoksia.
+- Korvataan **"Lähetä kutsu uudelleen"** napilla **"Nollaa salasana"** → generoi uuden satunnaisen väliaikaisen salasanan, asettaa `must_change_password = true` ja näyttää modaalin uudestaan adminille.
 
-## Tekninen huomio
+## Tekniset muutokset
 
-- `ebeco-sync.server.ts` tehdään `.server.ts`-päätteellä, jotta sitä ei voi vahingossa importata client-koodista.
-- Hookissa autentikointi: vain `apikey`-tarkistus (vakio `/api/public/*`-pattern). Reitti ei palauta dataa selaimelle vaan vain `{ ok, created, updated }`-yhteenvedon.
-- Cron ajaa työn palvelimella, joten myös last_seen_at päivittyy oikein offline-laitteiden osalta (edellisessä turnaussa korjattu `isEbecoOffline`-logiikka säilyy ennallaan).
+### Tietokanta
+- Migraatio: lisätään `profiles.must_change_password BOOLEAN NOT NULL DEFAULT false`.
 
-## Aikatauluvaihtoehto
+### Server functions (`src/lib/users.functions.ts` tms.)
+- **`createUserWithTempPassword({ email, role, ... })`** — admin-only. `supabaseAdmin.auth.admin.createUser({ email, password: <random>, email_confirm: true })`, kirjoittaa rooli + profiili + `must_change_password = true`, palauttaa `{ tempPassword }`.
+- **`resetUserPassword({ userId })`** — admin-only. `supabaseAdmin.auth.admin.updateUserById(userId, { password: <random> })` + `must_change_password = true`, palauttaa uuden väliaikaisen salasanan.
+- **`completePasswordChange()`** — käyttäjä itse, nollaa `must_change_password = false` (salasanan vaihto itsessään tehdään selaimessa `supabase.auth.updateUser({ password })`).
+- Poistetaan / korvataan nykyinen `inviteUser`-kutsu.
 
-5 min on tasapaino tuoreuden ja Ebeco-API:n kuormituksen välillä. Jos haluat tiheämmän (esim. 1 min) tai harvemman, kerro niin säädän cron-lausekkeen.
+### UI
+- **"Lisää käyttäjä" -dialogi** — sama lomake, mutta onnistumisen jälkeen näyttää `TempPasswordModal`in (sähköposti + salasana + kopio).
+- **`/set-password`-sivu** — olemassa jo invite-flowia varten; muokataan toimimaan myös sisäänkirjautuneelle käyttäjälle jolla `must_change_password = true`. Käyttäjä syöttää uuden salasanan kahdesti.
+- **`_authenticated/route.tsx`** — ei kosketa managed-osuutta; sen sijaan lapsireitit (esim. uusi pieni `_authenticated/route.tsx`-tason redirect tai pieni komponenttitason check root-layoutissa) tarkistaa profiilin lipun ja ohjaa `/set-password`-sivulle. Toteutus: `_authenticated`-layoutin alla pieni "PasswordChangeGate"-komponentti joka `useQuery`:lla hakee oman profiilin ja navigoi tarvittaessa.
+- **Käyttäjäkortti adminille** — "Lähetä kutsu uudelleen" → "Nollaa salasana".
+
+## Mitä poistuu
+
+- Supabasen `inviteUserByEmail`-kutsu ja siihen liittyvä epäluotettava sähköpostiriippuvuus admin-flowissa.
+
+## Säilyy
+
+- Käyttäjän oma "Unohdin salasanani" `/auth`-sivulla (`resetPasswordForEmail`).
+- Google-kirjautuminen (jos käytössä) toimii ennallaan.
