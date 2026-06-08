@@ -19,6 +19,8 @@ type RecoveryType = "recovery" | "invite" | "signup" | "magiclink" | "email_chan
 
 function SetPasswordPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const complete = useServerFn(completePasswordChange);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
