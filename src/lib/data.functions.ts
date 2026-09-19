@@ -500,8 +500,9 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       .from("zone_defaults").select("id")
       .eq("building_id", row.building_id).eq("zone", row.zone).maybeSingle();
     if (!existing) await requireAdmin(supabase, userId);
-    const { error } = await supabase
-      .from("zone_defaults").upsert(row, { onConflict: "building_id,zone" });
+    const { error } = existing
+      ? await supabase.from("zone_defaults").update(row).eq("id", existing.id)
+      : await supabase.from("zone_defaults").insert(row);
     if (error) throw new Error(error.message);
     if (applyToAll) {
       const { error: e2 } = await supabase.from("thermostats")
