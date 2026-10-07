@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getApartment, updateApartment } from "@/lib/data.functions";
+import { getApartment, updateApartment, syncApartmentNow } from "@/lib/data.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu } from "lucide-react";
+import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -125,6 +126,39 @@ function NotesCard({ id, initial }: { id: string; initial: string }) {
   );
 }
 
+function SyncNowButton({ apartmentId }: { apartmentId: string }) {
+  const qc = useQueryClient();
+  const run = useServerFn(syncApartmentNow);
+  const [last, setLast] = useState<string | null>(null);
+  const m = useMutation({
+    mutationFn: () => run({ data: { apartmentId } }),
+    onSuccess: (r) => {
+      setLast(r.syncedAt);
+      qc.invalidateQueries({ queryKey: ["apartment", apartmentId] });
+      qc.invalidateQueries({ queryKey: ["devices"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      if (r.total === 0) toast.info("Huoneistossa ei ole Ebeco-termostaatteja");
+      else if (r.failed > 0) toast.error(`Synkronoitu ${r.succeeded}/${r.total}. ${r.errors[0] ?? ""}`);
+      else toast.success(`Synkronoitu ${r.succeeded} termostaattia`);
+      if (r.offline.length > 0) toast.warning(`Offline: ${r.offline.join(", ")}`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Synkronointi epäonnistui"),
+  });
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button onClick={() => m.mutate()} disabled={m.isPending}>
+        <RefreshCw className={`mr-2 h-4 w-4 ${m.isPending ? "animate-spin" : ""}`} />
+        {m.isPending ? "Synkronoidaan…" : "Synkronoi nyt"}
+      </Button>
+      {last && (
+        <span className="text-xs text-muted-foreground">
+          Viimeksi synkronoitu: klo {new Date(last).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ApartmentPage() {
   const { id } = Route.useParams();
   const { data: apt } = useSuspenseQuery(qo(id));
@@ -138,13 +172,16 @@ function ApartmentPage() {
       <Link to="/apartments" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="h-4 w-4" /> Huoneet
       </Link>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Huoneisto {apt.number}</h1>
-        <p className="text-sm text-muted-foreground">
-          {(apt as any).apartment_type ? `${(apt as any).apartment_type} · ` : ""}
-          {(apt as any).bedrooms != null ? `${(apt as any).bedrooms} mh · ` : ""}
-          {apt.size_m2 ?? "?"} m² · krs {apt.floor} · {thermostats.length} termostaattia
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Huoneisto {apt.number}</h1>
+          <p className="text-sm text-muted-foreground">
+            {(apt as any).apartment_type ? `${(apt as any).apartment_type} · ` : ""}
+            {(apt as any).bedrooms != null ? `${(apt as any).bedrooms} mh · ` : ""}
+            {apt.size_m2 ?? "?"} m² · krs {apt.floor} · {thermostats.length} termostaattia
+          </p>
+        </div>
+        <SyncNowButton apartmentId={apt.id} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr,360px]">
