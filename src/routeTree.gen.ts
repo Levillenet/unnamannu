@@ -9,32 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SetPasswordRouteImport } from './routes/set-password'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedZonesRouteImport } from './routes/_authenticated.zones'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
-import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
-import { Route as AuthenticatedMaxExceedancesRouteImport } from './routes/_authenticated.max-exceedances'
-import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
-import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authenticated.apartments'
-import { Route as ApiPublicEnforceLimitsRouteImport } from './routes/api/public/enforce-limits'
-import { Route as AuthenticatedThermostatsIdRouteImport } from './routes/_authenticated.thermostats.$id'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
+import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
+import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
+import { Route as AuthenticatedMaxExceedancesRouteImport } from './routes/_authenticated.max-exceedances'
+import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
+import { Route as AuthenticatedZonesRouteImport } from './routes/_authenticated.zones'
 import { Route as AuthenticatedApartmentsIdRouteImport } from './routes/_authenticated.apartments.$id'
+import { Route as AuthenticatedThermostatsIdRouteImport } from './routes/_authenticated.thermostats.$id'
+import { Route as ApiPublicEnforceLimitsRouteImport } from './routes/api/public/enforce-limits'
 import { Route as ApiPublicHooksEbecoSyncRouteImport } from './routes/api/public/hooks/ebeco-sync'
 
-const SetPasswordRoute = SetPasswordRouteImport.update({
-  id: '/set-password',
-  path: '/set-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -42,28 +41,34 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedZonesRoute = AuthenticatedZonesRouteImport.update({
-  id: '/zones',
-  path: '/zones',
+const AuthenticatedApartmentsRoute = AuthenticatedApartmentsRouteImport.update({
+  id: '/apartments',
+  path: '/apartments',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSchedulesRoute = AuthenticatedSchedulesRouteImport.update({
-  id: '/schedules',
-  path: '/schedules',
+const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
+  id: '/energy',
+  path: '/energy',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedMaxExceedancesRoute =
@@ -72,43 +77,38 @@ const AuthenticatedMaxExceedancesRoute =
     path: '/max-exceedances',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
-  id: '/energy',
-  path: '/energy',
+const AuthenticatedSchedulesRoute = AuthenticatedSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
-  id: '/devices',
-  path: '/devices',
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthenticatedZonesRoute = AuthenticatedZonesRouteImport.update({
+  id: '/zones',
+  path: '/zones',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedApartmentsRoute = AuthenticatedApartmentsRouteImport.update({
-  id: '/apartments',
-  path: '/apartments',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const ApiPublicEnforceLimitsRoute = ApiPublicEnforceLimitsRouteImport.update({
-  id: '/api/public/enforce-limits',
-  path: '/api/public/enforce-limits',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedThermostatsIdRoute =
-  AuthenticatedThermostatsIdRouteImport.update({
-    id: '/thermostats/$id',
-    path: '/thermostats/$id',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedApartmentsIdRoute =
   AuthenticatedApartmentsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
     getParentRoute: () => AuthenticatedApartmentsRoute,
   } as any)
+const AuthenticatedThermostatsIdRoute =
+  AuthenticatedThermostatsIdRouteImport.update({
+    id: '/thermostats/$id',
+    path: '/thermostats/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const ApiPublicEnforceLimitsRoute = ApiPublicEnforceLimitsRouteImport.update({
+  id: '/api/public/enforce-limits',
+  path: '/api/public/enforce-limits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksEbecoSyncRoute = ApiPublicHooksEbecoSyncRouteImport.update({
   id: '/api/public/hooks/ebeco-sync',
   path: '/api/public/hooks/ebeco-sync',
@@ -241,25 +241,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/set-password': {
-      id: '/set-password'
-      path: '/set-password'
-      fullPath: '/set-password'
-      preLoaderRoute: typeof SetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -269,53 +255,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/zones': {
-      id: '/_authenticated/zones'
-      path: '/zones'
-      fullPath: '/zones'
-      preLoaderRoute: typeof AuthenticatedZonesRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/schedules': {
-      id: '/_authenticated/schedules'
-      path: '/schedules'
-      fullPath: '/schedules'
-      preLoaderRoute: typeof AuthenticatedSchedulesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/max-exceedances': {
-      id: '/_authenticated/max-exceedances'
-      path: '/max-exceedances'
-      fullPath: '/max-exceedances'
-      preLoaderRoute: typeof AuthenticatedMaxExceedancesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/energy': {
-      id: '/_authenticated/energy'
-      path: '/energy'
-      fullPath: '/energy'
-      preLoaderRoute: typeof AuthenticatedEnergyRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/devices': {
-      id: '/_authenticated/devices'
-      path: '/devices'
-      fullPath: '/devices'
-      preLoaderRoute: typeof AuthenticatedDevicesRouteImport
+    '/_authenticated/apartments': {
+      id: '/_authenticated/apartments'
+      path: '/apartments'
+      fullPath: '/apartments'
+      preLoaderRoute: typeof AuthenticatedApartmentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -325,25 +290,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/apartments': {
-      id: '/_authenticated/apartments'
-      path: '/apartments'
-      fullPath: '/apartments'
-      preLoaderRoute: typeof AuthenticatedApartmentsRouteImport
+    '/_authenticated/devices': {
+      id: '/_authenticated/devices'
+      path: '/devices'
+      fullPath: '/devices'
+      preLoaderRoute: typeof AuthenticatedDevicesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/api/public/enforce-limits': {
-      id: '/api/public/enforce-limits'
-      path: '/api/public/enforce-limits'
-      fullPath: '/api/public/enforce-limits'
-      preLoaderRoute: typeof ApiPublicEnforceLimitsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/energy': {
+      id: '/_authenticated/energy'
+      path: '/energy'
+      fullPath: '/energy'
+      preLoaderRoute: typeof AuthenticatedEnergyRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/thermostats/$id': {
-      id: '/_authenticated/thermostats/$id'
-      path: '/thermostats/$id'
-      fullPath: '/thermostats/$id'
-      preLoaderRoute: typeof AuthenticatedThermostatsIdRouteImport
+    '/_authenticated/max-exceedances': {
+      id: '/_authenticated/max-exceedances'
+      path: '/max-exceedances'
+      fullPath: '/max-exceedances'
+      preLoaderRoute: typeof AuthenticatedMaxExceedancesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/schedules': {
+      id: '/_authenticated/schedules'
+      path: '/schedules'
+      fullPath: '/schedules'
+      preLoaderRoute: typeof AuthenticatedSchedulesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/zones': {
+      id: '/_authenticated/zones'
+      path: '/zones'
+      fullPath: '/zones'
+      preLoaderRoute: typeof AuthenticatedZonesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/apartments/$id': {
@@ -352,6 +338,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/apartments/$id'
       preLoaderRoute: typeof AuthenticatedApartmentsIdRouteImport
       parentRoute: typeof AuthenticatedApartmentsRoute
+    }
+    '/_authenticated/thermostats/$id': {
+      id: '/_authenticated/thermostats/$id'
+      path: '/thermostats/$id'
+      fullPath: '/thermostats/$id'
+      preLoaderRoute: typeof AuthenticatedThermostatsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/enforce-limits': {
+      id: '/api/public/enforce-limits'
+      path: '/api/public/enforce-limits'
+      fullPath: '/api/public/enforce-limits'
+      preLoaderRoute: typeof ApiPublicEnforceLimitsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/ebeco-sync': {
       id: '/api/public/hooks/ebeco-sync'
