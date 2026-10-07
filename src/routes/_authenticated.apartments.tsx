@@ -1,3 +1,4 @@
+import { readFloor, readRoom, sensorMode } from "@/lib/sensor";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listApartments, updateThermostat, createApartment } from "@/lib/data.functions";
@@ -24,10 +25,7 @@ function pickRoomTemp(t: any): number | null {
   return null;
 }
 function pickFloorTemp(t: any): number | null {
-  const eb = (t?.ebeco_settings ?? {}) as Record<string, unknown>;
-  if (typeof eb.temperatureFloorDecimals === "number") return eb.temperatureFloorDecimals as number;
-  if (typeof eb.temperatureFloor === "number") return eb.temperatureFloor as number;
-  return null;
+  return readFloor(t?.ebeco_settings);
 }
 
 export const Route = createFileRoute("/_authenticated/apartments")({
