@@ -753,13 +753,16 @@ async function pushPatchToTargets(
         succeeded.map(async ({ localId, ebecoId }) => {
           const detail = byEbecoId.get(ebecoId);
           if (!detail) return;
-          const cols = ebecoPatchToColumns(detail as unknown as EbecoPatch);
+          // Ebecon lista voi palauttaa hetken vanhaa tilaa heti kirjoituksen
+          // jälkeen — juuri kirjoitetut kentät voittavat aina.
+          const merged = { ...(detail as any), ...(patch as any) };
+          const cols = ebecoPatchToColumns(merged as EbecoPatch);
           const status: "online" | "offline" = isEbecoOffline(detail) ? "offline" : "online";
           const setpoint =
-            typeof detail.temperatureSet === "number" ? detail.temperatureSet : null;
+            typeof merged.temperatureSet === "number" ? merged.temperatureSet : null;
           const rowPatch: Record<string, unknown> = {
             status,
-            ebeco_settings: detail as unknown as Record<string, unknown>,
+            ebeco_settings: merged as Record<string, unknown>,
             ...cols,
           };
           if (status === "online") rowPatch.last_seen_at = nowIso;
