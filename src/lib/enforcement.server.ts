@@ -99,8 +99,17 @@ export async function runEnforcementForRows(
       }
     }
 
-    // 2) Max-hold demote: setpoint >= guest_max for hold_minutes
-    if (setpoint >= guestMax && (z.max_hold_minutes ?? 0) > 0) {
+    // 2) Palautus oletukseen: mikä tahansa oletusta korkeampi asetus
+    //    palautuu oletukseen max_hold_minutes jälkeen.
+    const defSp = Number(z.default_setpoint);
+    if (setpoint <= defSp && t.max_hold_started_at) {
+      await supabase
+        .from("thermostats")
+        .update({ max_hold_started_at: null })
+        .eq("id", t.id);
+      t.max_hold_started_at = null;
+    }
+    if (setpoint > defSp && (z.max_hold_minutes ?? 0) > 0) {
       // Ensure max_hold_started_at set
       if (!t.max_hold_started_at) {
         await supabase
