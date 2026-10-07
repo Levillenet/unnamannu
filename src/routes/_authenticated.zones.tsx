@@ -164,7 +164,7 @@ function ZoneCard({
           </div>
           <p className="text-xs text-muted-foreground">
             Aika jonka jälkeen sovellus pakottaa asetuksen takaisin asiakkaan ylärajaan,
-            jos asetus on viety yli. 0 = pakotus seuraavalla tarkistussyklillä (≤ 60 s).
+            jos asetus on viety yli. 0 = pakotus seuraavalla tarkistuksella (tarkistus kerran tunnissa).
           </p>
 
         </div>
