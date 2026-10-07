@@ -187,9 +187,25 @@ function ZoneCard({
           >
             {saving ? "Tallennetaan…" : `Tallenna muutokset termostaatteihin (${count})`}
           </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              onSaveAndApply({
+                guest: Number(row.guest_max_setpoint),
+                grace: Number(row.override_grace_minutes),
+                def: Number(row.default_setpoint),
+                hold: Number(row.max_hold_minutes),
+              })
+            }
+            disabled={saving || count === 0}
+          >
+            Synkronoi asetukset termostaatteihin nyt
+          </Button>
           <p className="text-xs text-muted-foreground">
-            Tallentaa oletukset ja päivittää saman vyöhykkeen termostaattien ylärajan ja
-            oletuslämpötilan.
+            Tallenna: tallentaa muutokset ja vie ne termostaatteihin. Synkronoi: lähettää
+            vyöhykkeen tallennetut oletuslämpötilan ja ylärajan heti kaikille vyöhykkeen
+            termostaateille Ebecoon.
           </p>
         </div>
 
