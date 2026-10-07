@@ -136,15 +136,15 @@ function ZoneCard({
 
         <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
           <div className="flex items-baseline justify-between">
-            <Label className="text-sm">Max-pitoaika</Label>
+            <Label className="text-sm">Palautus oletukseen</Label>
             <span className="text-base font-semibold text-primary">
-              {hold === 0 ? "ei käytössä" : `${holdHours} h`}
+              {hold === 0 ? "ei käytössä" : hold < 60 ? `${hold} min` : `${holdHours} h`}
             </span>
           </div>
-          <Slider min={0} max={1440} step={60} value={[hold]} onValueChange={(v) => setHold(v[0])} />
+          <Slider min={0} max={1440} step={15} value={[hold]} onValueChange={(v) => setHold(v[0])} />
           <p className="text-xs text-muted-foreground">
-            Kun termostaatti on saavuttanut max-arvon, se palautuu oletuslämpötilaan tämän ajan kuluttua.
-            0 = ei automaattipalautusta (termostaatti jää max-arvoon).
+            Jos lämpötila nostetaan oletusta korkeammaksi, se palautuu oletuslämpötilaan tämän ajan
+            kuluttua (esim. WC/pesuhuone 60 min, olohuone 2–3 h). 0 = ei palautusta.
           </p>
         </div>
 
