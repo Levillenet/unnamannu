@@ -357,10 +357,16 @@ function ZonesPage() {
 
   const saveM = useMutation({
     mutationFn: save,
-    onSuccess: (_r, vars: any) => {
+    onSuccess: (r: any, vars: any) => {
       invalidate();
+      qc.invalidateQueries({ queryKey: ["apartment"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       const v = vars.data;
-      if (v.applyToAll) toast.success("Yläraja sovellettu kaikkiin");
+      if (v.applyToAll) {
+        const msg = `Oletus ${v.default_setpoint} °C asetettu ${r?.applied ?? 0} termostaattiin · Ebecoon lähetetty ${r?.pushed ?? 0}`;
+        if (r?.pushFailed) toast.warning(`${msg} · epäonnistui ${r.pushFailed} (esim. offline)`);
+        else toast.success(msg);
+      }
       else if (typeof v.lockAll === "boolean") toast.success(v.lockAll ? "Kaikki lukittu" : "Kaikki vapautettu");
       else toast.success("Tallennettu");
     },
