@@ -1,3 +1,4 @@
+import { readFloor, readRoom, sensorMode } from "@/lib/sensor";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -125,7 +126,7 @@ function ThermostatPage() {
     .map((r) => ({
       time: new Date(r.ts as string).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit" }),
       huone: Number(r.room_temp),
-      lattia: Number(r.floor_temp),
+      lattia: r.floor_temp == null ? null : Number(r.floor_temp),
       asetus: Number(r.setpoint),
       teho: Number(r.power_w),
     }));
@@ -142,12 +143,8 @@ function ThermostatPage() {
       const lastTemp = [...data.readings].reverse().find((r: any) => r.room_temp != null);
       return lastTemp ? Number((lastTemp as any).room_temp) : null;
     })();
-  const floorTempRaw =
-    typeof ebSettings.temperatureFloorDecimals === "number"
-      ? ebSettings.temperatureFloorDecimals
-      : typeof ebSettings.temperatureFloor === "number"
-        ? ebSettings.temperatureFloor
-        : null;
+  const floorTempRaw = readFloor(ebSettings);
+  const sMode = sensorMode(ebSettings.sensorApplication);
 
   const lastSeenAt = t.last_seen_at ? new Date(t.last_seen_at as string) : null;
   const lastSeenLabel = lastSeenAt ? formatRelative(lastSeenAt) : "ei dataa";
@@ -250,9 +247,10 @@ function ThermostatPage() {
               </div>
               <div className="mt-1 flex items-baseline justify-between text-xs text-muted-foreground">
                 <span>
+                  {sMode.label ? `${sMode.label} · ` : ""}
                   {floorTempRaw != null
-                    ? `Mitattu lattia ${Number(floorTempRaw).toFixed(1)} °C`
-                    : "Mitattu lattia —"}
+                    ? `Mitattu ${sMode.floorLabel} ${Number(floorTempRaw).toFixed(1)} °C`
+                    : sMode.hasFloor ? "Mitattu lattia —" : "Ei lattia-anturia"}
                 </span>
                 <span>päivitetty {lastSeenLabel}</span>
               </div>
@@ -443,7 +441,7 @@ function ThermostatPage() {
                   <YAxis tick={{ fontSize: 10 }} domain={[10, 35]} />
                   <Tooltip />
                   <Line type="monotone" dataKey="huone" stroke="var(--chart-1)" dot={false} name="Mitattu huone" />
-                  <Line type="monotone" dataKey="lattia" stroke="var(--chart-4)" dot={false} name="Mitattu lattia" />
+                  {sMode.hasFloor && <Line type="monotone" dataKey="lattia" stroke="var(--chart-4)" dot={false} name="Mitattu lattia" />}
                   <Line type="monotone" dataKey="asetus" stroke="var(--chart-2)" strokeDasharray="4 4" dot={false} name="Asetus" />
                 </LineChart>
               </ResponsiveContainer>

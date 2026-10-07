@@ -278,6 +278,7 @@ export function pickRoomTemp(d: EbecoDevice): number | null {
   return null;
 }
 export function pickFloorTemp(d: EbecoDevice): number | null {
+  if (String(d.sensorApplication ?? "").toLowerCase() === "room") return null;
   if (typeof d.temperatureFloorDecimals === "number") return d.temperatureFloorDecimals;
   if (typeof d.temperatureFloor === "number") return d.temperatureFloor;
   return null;

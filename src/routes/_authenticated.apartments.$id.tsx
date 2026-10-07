@@ -1,3 +1,4 @@
+import { readFloor, readRoom, sensorMode } from "@/lib/sensor";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getApartment, updateApartment, syncApartmentNow } from "@/lib/data.functions";
@@ -54,12 +55,7 @@ function ThermostatCard({ t }: { t: any }) {
                 : typeof eb.temperatureRoom === "number"
                   ? (eb.temperatureRoom as number)
                   : null;
-            const floor =
-              typeof eb.temperatureFloorDecimals === "number"
-                ? (eb.temperatureFloorDecimals as number)
-                : typeof eb.temperatureFloor === "number"
-                  ? (eb.temperatureFloor as number)
-                  : null;
+            const floor = readFloor(eb);
             return (
               <div className="mt-1 text-sm text-primary">
                 Mitattu {room != null ? `${room.toFixed(1)} °C` : "—"}
