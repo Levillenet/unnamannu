@@ -517,10 +517,33 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       ? await supabase.from("zone_defaults").update(row).eq("id", existing.id)
       : await supabase.from("zone_defaults").insert(row);
     if (error) throw new Error(error.message);
+    let applied = 0;
+    let pushed = 0;
+    let pushFailed = 0;
     if (applyToAll) {
-      const { error: e2 } = await supabase.from("thermostats")
-        .update({ guest_max_setpoint: row.guest_max_setpoint }).eq("zone", row.zone);
+      // Vie oletuslämpötila + asiakasmaksimi vyöhykkeen termostaatteihin
+      // ja lähetä ne heti Ebecoon.
+      const setpoint = Math.min(row.default_setpoint, row.guest_max_setpoint);
+      const { data: zoneRows, error: e2 } = await supabase.from("thermostats")
+        .update({
+          guest_max_setpoint: row.guest_max_setpoint,
+          current_setpoint: setpoint,
+          override_started_at: null,
+          max_hold_started_at: null,
+        })
+        .eq("zone", row.zone)
+        .select("id");
       if (e2) throw new Error(e2.message);
+      const ids = (zoneRows ?? []).map((r: any) => r.id as string);
+      applied = ids.length;
+      if (ids.length > 0) {
+        const res = await pushPatchToTargets(supabase, ids, {
+          temperatureSet: setpoint,
+          maxSetpoint: row.guest_max_setpoint,
+        } as EbecoPatch);
+        pushed = res.succeeded;
+        pushFailed = res.failed;
+      }
     }
     let lockPushed = 0;
     let lockFailed = 0;
@@ -544,9 +567,9 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: existing ? "zone.update" : "zone.create",
       entity_type: "zone", entity_id: row.zone,
-      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed },
+      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed },
     });
-    return { ok: true, lockPushed, lockFailed };
+    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed };
   });
 
 
