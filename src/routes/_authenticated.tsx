@@ -85,9 +85,8 @@ function AuthenticatedLayout() {
         runningRef.current = false;
       }
     };
-    // Aja heti + joka 60 s
-    void tick();
-    const handle = setInterval(tick, 60_000);
+    // Taustatyö hoitaa päivitykset tunnin välein; selain tarkistaa myös kerran tunnissa
+    const handle = setInterval(tick, 3_600_000);
     return () => {
       alive = false;
       clearInterval(handle);

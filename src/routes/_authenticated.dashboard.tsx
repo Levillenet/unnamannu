@@ -66,6 +66,14 @@ function DashboardPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Yleisnäkymä</h1>
         <p className="text-sm text-muted-foreground">{o.building?.name ?? "Hotelli"}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Tiedot päivitetty:{" "}
+          {o.lastSyncAt
+            ? new Date(o.lastSyncAt).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" })
+            : "—"}
+          {" · "}Seuraava päivitys:{" "}
+          {new Date(o.nextSyncAt).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
