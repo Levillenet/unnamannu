@@ -480,15 +480,17 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("zone_defaults").select("*").order("label"),
-      supabase.from("thermostats").select("id,zone,locked"),
+      supabase.from("thermostats").select("id,zone,locked,enabled"),
     ]);
     const counts: Record<string, number> = {};
     const lockedCounts: Record<string, number> = {};
+    const enabledCounts: Record<string, number> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
       if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
+      if (t.enabled) enabledCounts[t.zone] = (enabledCounts[t.zone] ?? 0) + 1;
     }
-    return { building, defaults: defaults ?? [], counts, lockedCounts };
+    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts };
   });
 
 export const saveZoneDefault = createServerFn({ method: "POST" })

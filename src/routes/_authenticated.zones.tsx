@@ -5,6 +5,7 @@ import {
   listZoneDefaults,
   saveZoneDefault,
   deleteZoneDefault,
+  setZonePower,
 } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -64,16 +65,22 @@ function ZoneCard({
   row,
   count,
   lockedCount,
+  enabledCount,
   onSaveAndApply,
   onLockToggle,
+  onPower,
+  powering,
   onDelete,
   saving,
 }: {
   row: ZoneRow;
   count: number;
   lockedCount: number;
+  enabledCount: number;
   onSaveAndApply: (a: SaveArgs) => void;
   onLockToggle: (locked: boolean) => void;
+  onPower: (on: boolean) => void;
+  powering: boolean;
   onDelete: () => void;
   saving: boolean;
 }) {
@@ -185,6 +192,39 @@ function ZoneCard({
             oletuslämpötilan.
           </p>
         </div>
+
+        <div className="space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Lämmitys</Label>
+            <span className="text-xs text-muted-foreground">
+              {enabledCount}/{count} päällä
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPower(true)}
+              disabled={powering || count === 0 || enabledCount === count}
+            >
+              Kaikki päälle
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Sammutetaanko vyöhykkeen "${row.label}" kaikki ${count} termostaattia?`)) onPower(false);
+              }}
+              disabled={powering || count === 0 || enabledCount === 0}
+            >
+              Kaikki pois
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Kytkee vyöhykkeen kaikki termostaatit päälle tai pois (esim. kesäksi). Lähetetään heti Ebecoon.
+          </p>
+        </div>
+
 
         {/* Lapsilukko-ominaisuus piilotettu: Ebecon julkinen API ei tue
             childLockin etäohjausta, joten asetus ei aiemmin oikeasti
