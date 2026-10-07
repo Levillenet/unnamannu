@@ -5,6 +5,7 @@ import {
   listZoneDefaults,
   saveZoneDefault,
   deleteZoneDefault,
+  setZonePower,
 } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -64,16 +65,22 @@ function ZoneCard({
   row,
   count,
   lockedCount,
+  enabledCount,
   onSaveAndApply,
   onLockToggle,
+  onPower,
+  powering,
   onDelete,
   saving,
 }: {
   row: ZoneRow;
   count: number;
   lockedCount: number;
+  enabledCount: number;
   onSaveAndApply: (a: SaveArgs) => void;
   onLockToggle: (locked: boolean) => void;
+  onPower: (on: boolean) => void;
+  powering: boolean;
   onDelete: () => void;
   saving: boolean;
 }) {
@@ -185,6 +192,39 @@ function ZoneCard({
             oletuslämpötilan.
           </p>
         </div>
+
+        <div className="space-y-2 border-t pt-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Lämmitys</Label>
+            <span className="text-xs text-muted-foreground">
+              {enabledCount}/{count} päällä
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPower(true)}
+              disabled={powering || count === 0 || enabledCount === count}
+            >
+              Kaikki päälle
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Sammutetaanko vyöhykkeen "${row.label}" kaikki ${count} termostaattia?`)) onPower(false);
+              }}
+              disabled={powering || count === 0 || enabledCount === 0}
+            >
+              Kaikki pois
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Kytkee vyöhykkeen kaikki termostaatit päälle tai pois (esim. kesäksi). Lähetetään heti Ebecoon.
+          </p>
+        </div>
+
 
         {/* Lapsilukko-ominaisuus piilotettu: Ebecon julkinen API ei tue
             childLockin etäohjausta, joten asetus ei aiemmin oikeasti
@@ -373,6 +413,20 @@ function ZonesPage() {
     onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
   });
 
+  const power = useServerFn(setZonePower);
+  const powerM = useMutation({
+    mutationFn: power,
+    onSuccess: (r: any, vars: any) => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["apartment"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      const msg = `${r.count} termostaattia ${vars.data.on ? "päälle" : "pois"} · Ebecoon lähetetty ${r.pushed}`;
+      if (r.failed) toast.warning(`${msg} · epäonnistui ${r.failed} (esim. offline)`);
+      else toast.success(msg);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Päälle/pois-kytkentä epäonnistui"),
+  });
+
   const delM = useMutation({
     mutationFn: del,
     onSuccess: () => { invalidate(); toast.success("Vyöhyke poistettu"); },
@@ -429,6 +483,9 @@ function ZonesPage() {
               row={z}
               count={data.counts[z.zone] ?? 0}
               lockedCount={(data as any).lockedCounts?.[z.zone] ?? 0}
+              enabledCount={(data as any).enabledCounts?.[z.zone] ?? 0}
+              powering={powerM.isPending}
+              onPower={(on) => powerM.mutate({ data: { zone: z.zone, on } })}
               saving={saveM.isPending}
               onSaveAndApply={(a) =>
 

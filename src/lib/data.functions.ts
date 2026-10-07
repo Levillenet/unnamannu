@@ -480,15 +480,17 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("zone_defaults").select("*").order("label"),
-      supabase.from("thermostats").select("id,zone,locked"),
+      supabase.from("thermostats").select("id,zone,locked,enabled"),
     ]);
     const counts: Record<string, number> = {};
     const lockedCounts: Record<string, number> = {};
+    const enabledCounts: Record<string, number> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
       if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
+      if (t.enabled) enabledCounts[t.zone] = (enabledCounts[t.zone] ?? 0) + 1;
     }
-    return { building, defaults: defaults ?? [], counts, lockedCounts };
+    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts };
   });
 
 export const saveZoneDefault = createServerFn({ method: "POST" })
@@ -997,4 +999,30 @@ export const syncApartmentNow = createServerFn({ method: "POST" })
     });
 
     return { total: targets.length, succeeded, failed, actions, offline, errors, syncedAt: new Date().toISOString() };
+  });
+
+// Vyöhykkeen kaikki termostaatit päälle/pois (esim. kesäkäyttö).
+export const setZonePower = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({ zone: z.string().min(1).max(40), on: z.boolean() }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: rows, error } = await supabase
+      .from("thermostats")
+      .update({ enabled: data.on })
+      .eq("zone", data.zone)
+      .select("id");
+    if (error) throw new Error(error.message);
+    const ids = (rows ?? []).map((r: any) => r.id as string);
+    const res = ids.length
+      ? await pushPatchToTargets(supabase, ids, { powerOn: data.on } as EbecoPatch)
+      : { succeeded: 0, failed: 0, errors: [] as string[] };
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: data.on ? "zone.power_on" : "zone.power_off",
+      entity_type: "zone", entity_id: data.zone,
+      details: { count: ids.length, pushed: res.succeeded, failed: res.failed },
+    });
+    return { count: ids.length, pushed: res.succeeded, failed: res.failed };
   });
