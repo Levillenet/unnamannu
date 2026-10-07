@@ -176,7 +176,7 @@ function ZoneCard({
           <Button
             className="w-full"
             onClick={() => onSaveAndApply({ guest, grace, def, hold })}
-            disabled={saving || !dirty}
+            disabled={saving || count === 0}
           >
             {saving ? "Tallennetaan…" : `Tallenna muutokset termostaatteihin (${count})`}
           </Button>
