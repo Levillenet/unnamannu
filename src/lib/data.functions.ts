@@ -900,3 +900,75 @@ export const syncEbecoDevice = createServerFn({ method: "POST" })
 
     return { ok: true as const, message: "Asetukset päivitetty Ebecosta" };
   });
+
+// "Synkronoi nyt": kirjoita sovelluksen asetukset huoneiston termostaatteihin
+// Ebecoon, hae tuore tila ja aja rajatarkistus heti.
+export const syncApartmentNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { apartmentId: string }) =>
+    z.object({ apartmentId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: rows, error } = await supabase
+      .from("thermostats")
+      .select("id,name,ebeco_device_id,current_setpoint,guest_max_setpoint,enabled,status")
+      .eq("apartment_id", data.apartmentId);
+    if (error) throw new Error(error.message);
+
+    const targets = (rows ?? []).filter(
+      (r: any) => r.ebeco_device_id && !Number.isNaN(Number(r.ebeco_device_id)),
+    );
+
+    let succeeded = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    for (const r of targets as any[]) {
+      const setpoint = Math.min(Number(r.current_setpoint), Number(r.guest_max_setpoint));
+      const res = await pushPatchToTargets(supabase, [r.id], {
+        temperatureSet: setpoint,
+        maxSetpoint: Number(r.guest_max_setpoint),
+        powerOn: r.enabled,
+      } as EbecoPatch);
+      succeeded += res.succeeded;
+      failed += res.failed;
+      for (const e of res.errors) errors.push(`${r.name}: ${e}`);
+    }
+
+    // Rajatarkistus tämän huoneiston termostaateille
+    let actions = 0;
+    try {
+      const { runEnforcementForRows } = await import("./enforcement.server");
+      const ids = targets.map((t: any) => t.id);
+      if (ids.length > 0) {
+        const { data: eRows } = await supabase
+          .from("thermostats")
+          .select(
+            "id,name,zone,ebeco_device_id,current_setpoint,guest_max_setpoint,override_started_at,max_hold_started_at",
+          )
+          .in("id", ids);
+        const { data: zones } = await supabase
+          .from("zone_defaults")
+          .select("zone,default_setpoint,override_grace_minutes,max_hold_minutes");
+        const acts = await runEnforcementForRows(supabase, (eRows ?? []) as any, (zones ?? []) as any);
+        actions = acts.length;
+      }
+    } catch (e) {
+      errors.push(`Rajatarkistus: ${(e as Error).message}`);
+    }
+
+    const { data: after } = await supabase
+      .from("thermostats")
+      .select("name,status")
+      .eq("apartment_id", data.apartmentId);
+    const offline = (after ?? []).filter((t: any) => t.status !== "online").map((t: any) => t.name);
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "apartment.sync_now",
+      entity_type: "apartment",
+      entity_id: data.apartmentId,
+      details: { total: targets.length, succeeded, failed, actions },
+    });
+
+    return { total: targets.length, succeeded, failed, actions, offline, errors, syncedAt: new Date().toISOString() };
+  });
