@@ -413,6 +413,20 @@ function ZonesPage() {
     onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
   });
 
+  const power = useServerFn(setZonePower);
+  const powerM = useMutation({
+    mutationFn: power,
+    onSuccess: (r: any, vars: any) => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["apartment"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      const msg = `${r.count} termostaattia ${vars.data.on ? "päälle" : "pois"} · Ebecoon lähetetty ${r.pushed}`;
+      if (r.failed) toast.warning(`${msg} · epäonnistui ${r.failed} (esim. offline)`);
+      else toast.success(msg);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Päälle/pois-kytkentä epäonnistui"),
+  });
+
   const delM = useMutation({
     mutationFn: del,
     onSuccess: () => { invalidate(); toast.success("Vyöhyke poistettu"); },
@@ -469,6 +483,9 @@ function ZonesPage() {
               row={z}
               count={data.counts[z.zone] ?? 0}
               lockedCount={(data as any).lockedCounts?.[z.zone] ?? 0}
+              enabledCount={(data as any).enabledCounts?.[z.zone] ?? 0}
+              powering={powerM.isPending}
+              onPower={(on) => powerM.mutate({ data: { zone: z.zone, on } })}
               saving={saveM.isPending}
               onSaveAndApply={(a) =>
 
