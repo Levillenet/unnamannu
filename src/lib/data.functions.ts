@@ -998,3 +998,29 @@ export const syncApartmentNow = createServerFn({ method: "POST" })
 
     return { total: targets.length, succeeded, failed, actions, offline, errors, syncedAt: new Date().toISOString() };
   });
+
+// Vyöhykkeen kaikki termostaatit päälle/pois (esim. kesäkäyttö).
+export const setZonePower = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({ zone: z.string().min(1).max(40), on: z.boolean() }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: rows, error } = await supabase
+      .from("thermostats")
+      .update({ enabled: data.on })
+      .eq("zone", data.zone)
+      .select("id");
+    if (error) throw new Error(error.message);
+    const ids = (rows ?? []).map((r: any) => r.id as string);
+    const res = ids.length
+      ? await pushPatchToTargets(supabase, ids, { powerOn: data.on } as EbecoPatch)
+      : { succeeded: 0, failed: 0, errors: [] as string[] };
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: data.on ? "zone.power_on" : "zone.power_off",
+      entity_type: "zone", entity_id: data.zone,
+      details: { count: ids.length, pushed: res.succeeded, failed: res.failed },
+    });
+    return { count: ids.length, pushed: res.succeeded, failed: res.failed };
+  });
