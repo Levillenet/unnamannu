@@ -83,7 +83,7 @@ function ThermostatPage() {
   const t = data.thermostat;
   const { data: zonesData } = useSuspenseQuery(zonesQO);
   const zoneOptions = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
-  const zoneLabel = zoneOptions.find((z) => z.zone === t.zone)?.label ?? t.zone;
+  const zoneLabel = zoneOptions.find((z) => z.zone === t.zone)?.label ?? (t.zone === "none" ? "Ei vyöhykettä" : t.zone);
   const counts = {
     all: allDevices.length,
     zone: allDevices.filter((d) => d.zone === t.zone).length,
@@ -343,6 +343,7 @@ function ThermostatPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Ei vyöhykettä</SelectItem>
                   {zoneOptions.map((z) => (
                     <SelectItem key={z.zone} value={z.zone}>{z.label}</SelectItem>
                   ))}

@@ -106,6 +106,7 @@ function UnallocatedRow({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="none">Ei vyöhykettä</SelectItem>
               {zones.map((z) => (
                 <SelectItem key={z.zone} value={z.zone}>{z.label}</SelectItem>
               ))}
@@ -131,7 +132,7 @@ function DevicesPage() {
   const { data } = useSuspenseQuery(qo);
   const { data: zonesData } = useSuspenseQuery(zonesQo);
   const zoneOptions: ZoneOption[] = (zonesData.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
-  const zoneLabelOf = (z: string) => zoneOptions.find((o) => o.zone === z)?.label ?? z;
+  const zoneLabelOf = (z: string) => zoneOptions.find((o) => o.zone === z)?.label ?? (z === "none" ? "Ei vyöhykettä" : z);
   const qc = useQueryClient();
 
   const sync = useServerFn(syncEbecoDevices);
