@@ -1,0 +1,1 @@
+- After writing to Ebeco, merge the written patch over the freshly fetched device state before saving locally — Ebeco's list API returns stale values for a few seconds after a write.
