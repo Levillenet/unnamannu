@@ -93,6 +93,17 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       ? ts.reduce((s, t) => s + Number(t.current_setpoint), 0) / ts.length
       : null;
 
+    const { data: lastRow } = await supabase
+      .from("thermostat_readings")
+      .select("ts")
+      .order("ts", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastSyncAt: string | null = lastRow?.ts ?? null;
+    const next = new Date();
+    next.setUTCMinutes(0, 0, 0);
+    next.setUTCHours(next.getUTCHours() + 1);
+
     return {
       building,
       apartmentCount: apartments?.length ?? 0,
@@ -104,6 +115,8 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       avgRoomTemp: avgRoom,
       enforcedCount,
       avgSetpoint: avgSp,
+      lastSyncAt,
+      nextSyncAt: next.toISOString(),
     };
   });
 
