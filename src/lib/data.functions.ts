@@ -1032,7 +1032,7 @@ export const syncAllNow = createServerFn({ method: "POST" })
       action: "building.sync_now",
       entity_type: "building",
       entity_id: null,
-      details: { synced: result.synced ?? null, actions },
+      details: { total: result.total, created: result.created, updated: result.updated, actions },
     });
 
     return { ...result, actions, syncedAt: new Date().toISOString() };
