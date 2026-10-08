@@ -1002,6 +1002,42 @@ export const syncApartmentNow = createServerFn({ method: "POST" })
     return { total: targets.length, succeeded, failed, actions, offline, errors, syncedAt: new Date().toISOString() };
   });
 
+// "Päivitä nyt" etusivulla: hae tuore tila Ebecosta kaikille termostaateille
+// ja aja rajatarkistus heti.
+export const syncAllNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId, claims } = context;
+    const { syncEbecoIntoSupabase } = await import("./ebeco-sync.server");
+    const result = await syncEbecoIntoSupabase(supabase);
+
+    let actions = 0;
+    try {
+      const { runEnforcementForRows } = await import("./enforcement.server");
+      const { data: eRows } = await supabase
+        .from("thermostats")
+        .select(
+          "id,name,zone,ebeco_device_id,current_setpoint,guest_max_setpoint,override_started_at,max_hold_started_at",
+        );
+      const { data: zones } = await supabase
+        .from("zone_defaults")
+        .select("zone,default_setpoint,override_grace_minutes,max_hold_minutes");
+      const acts = await runEnforcementForRows(supabase, (eRows ?? []) as any, (zones ?? []) as any);
+      actions = acts.length;
+    } catch {
+      // Rajatarkistuksen virhe ei estä synkronoinnin tulosta
+    }
+
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: "building.sync_now",
+      entity_type: "building",
+      entity_id: null,
+      details: { synced: result.synced ?? null, actions },
+    });
+
+    return { ...result, actions, syncedAt: new Date().toISOString() };
+  });
+
 // Vyöhykkeen kaikki termostaatit päälle/pois (esim. kesäkäyttö).
 export const setZonePower = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
