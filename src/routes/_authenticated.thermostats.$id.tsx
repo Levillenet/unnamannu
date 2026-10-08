@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ShieldAlert, Link2Off, RefreshCw } from "lucide-react";
 import { ThermostatSettingsTabs } from "@/components/ThermostatSettingsTabs";
 
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -128,7 +128,30 @@ function ThermostatPage() {
       huone: Number(r.room_temp),
       lattia: r.floor_temp == null ? null : Number(r.floor_temp),
       asetus: Number(r.setpoint),
+      heating: (r as any).heating === true,
     }));
+
+  // Lämmitysjaksot (relayOn) värillisinä taustakaistoina lämpötilagraafissa
+  const heatingSegments: { x1: string; x2: string }[] = [];
+  let segStart: string | null = null;
+  for (const p of chartData) {
+    if (p.heating && segStart === null) segStart = p.time;
+    if (!p.heating && segStart !== null) {
+      heatingSegments.push({ x1: segStart, x2: p.time });
+      segStart = null;
+    }
+  }
+  if (segStart !== null && chartData.length > 0) {
+    heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].time });
+  }
+  const heatingMinutes24h = (() => {
+    const cutoff = Date.now() - 24 * 3600_000;
+    return data.readings.filter(
+      (r: any) => !r.event && (r as any).heating === true && new Date(r.ts as string).getTime() >= cutoff,
+    ).length * 15;
+  })();
+  const heatingNow = [...data.readings].reverse().find((r: any) => !r.event && (r as any).heating != null) as any;
+  const isHeatingNow = heatingNow?.heating === true;
 
   // Huonelämpötila: Ebecon viimeisin snapshot ensisijaisesti, tai uusin reading.
   const ebSettings = (t.ebeco_settings ?? {}) as Record<string, unknown>;
