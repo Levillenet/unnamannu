@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu, RefreshCw } from "lucide-react";
+import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu, RefreshCw, Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
