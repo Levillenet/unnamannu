@@ -17,7 +17,6 @@ import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authenticated.apartments'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
-import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated.energy'
 import { Route as AuthenticatedMaxExceedancesRouteImport } from './routes/_authenticated.max-exceedances'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
@@ -64,11 +63,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
   id: '/devices',
   path: '/devices',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
-  id: '/energy',
-  path: '/energy',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedMaxExceedancesRoute =
@@ -123,7 +117,6 @@ export interface FileRoutesByFullPath {
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
-  '/energy': typeof AuthenticatedEnergyRoute
   '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -141,7 +134,6 @@ export interface FileRoutesByTo {
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
-  '/energy': typeof AuthenticatedEnergyRoute
   '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -161,7 +153,6 @@ export interface FileRoutesById {
   '/_authenticated/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/devices': typeof AuthenticatedDevicesRoute
-  '/_authenticated/energy': typeof AuthenticatedEnergyRoute
   '/_authenticated/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -181,7 +172,6 @@ export interface FileRouteTypes {
     | '/apartments'
     | '/dashboard'
     | '/devices'
-    | '/energy'
     | '/max-exceedances'
     | '/schedules'
     | '/settings'
@@ -199,7 +189,6 @@ export interface FileRouteTypes {
     | '/apartments'
     | '/dashboard'
     | '/devices'
-    | '/energy'
     | '/max-exceedances'
     | '/schedules'
     | '/settings'
@@ -218,7 +207,6 @@ export interface FileRouteTypes {
     | '/_authenticated/apartments'
     | '/_authenticated/dashboard'
     | '/_authenticated/devices'
-    | '/_authenticated/energy'
     | '/_authenticated/max-exceedances'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
@@ -295,13 +283,6 @@ declare module '@tanstack/react-router' {
       path: '/devices'
       fullPath: '/devices'
       preLoaderRoute: typeof AuthenticatedDevicesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/energy': {
-      id: '/_authenticated/energy'
-      path: '/energy'
-      fullPath: '/energy'
-      preLoaderRoute: typeof AuthenticatedEnergyRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/max-exceedances': {
@@ -381,7 +362,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedApartmentsRoute: typeof AuthenticatedApartmentsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDevicesRoute: typeof AuthenticatedDevicesRoute
-  AuthenticatedEnergyRoute: typeof AuthenticatedEnergyRoute
   AuthenticatedMaxExceedancesRoute: typeof AuthenticatedMaxExceedancesRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -393,7 +373,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApartmentsRoute: AuthenticatedApartmentsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDevicesRoute: AuthenticatedDevicesRoute,
-  AuthenticatedEnergyRoute: AuthenticatedEnergyRoute,
   AuthenticatedMaxExceedancesRoute: AuthenticatedMaxExceedancesRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
