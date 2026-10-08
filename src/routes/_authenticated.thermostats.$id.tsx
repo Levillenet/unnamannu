@@ -124,6 +124,7 @@ function ThermostatPage() {
   const chartData = data.readings
     .filter((r: any) => !r.event)
     .map((r) => ({
+      t: new Date(r.ts as string).getTime(),
       time: new Date(r.ts as string).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit" }),
       huone: Number(r.room_temp),
       lattia: r.floor_temp == null ? null : Number(r.floor_temp),
@@ -132,17 +133,17 @@ function ThermostatPage() {
     }));
 
   // Lämmitysjaksot (relayOn) värillisinä taustakaistoina lämpötilagraafissa
-  const heatingSegments: { x1: string; x2: string }[] = [];
-  let segStart: string | null = null;
+  const heatingSegments: { x1: number; x2: number }[] = [];
+  let segStart: number | null = null;
   for (const p of chartData) {
-    if (p.heating && segStart === null) segStart = p.time;
+    if (p.heating && segStart === null) segStart = p.t;
     if (!p.heating && segStart !== null) {
-      heatingSegments.push({ x1: segStart, x2: p.time });
+      heatingSegments.push({ x1: segStart, x2: p.t });
       segStart = null;
     }
   }
   if (segStart !== null && chartData.length > 0) {
-    heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].time });
+    heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].t + 15 * 60_000 });
   }
   const heatingMinutes24h = (() => {
     const cutoff = Date.now() - 24 * 3600_000;
@@ -476,13 +477,15 @@ function ThermostatPage() {
                       key={i}
                       x1={s.x1}
                       x2={s.x2}
-                      fill="hsl(var(--warning) / 0.12)"
+                      fill="var(--warning)"
+                      fillOpacity={0.25}
+                      ifOverflow="extendDomain"
                       stroke="none"
                     />
                   ))}
-                  <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 8)} />
+                  <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} tick={{ fontSize: 10 }} tickCount={8} tickFormatter={(v) => new Date(v).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} />
                   <YAxis tick={{ fontSize: 10 }} domain={[10, 35]} />
-                  <Tooltip />
+                  <Tooltip labelFormatter={(v) => new Date(Number(v)).toLocaleString("fi-FI", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} />
                   <Line type="monotone" dataKey="huone" stroke="var(--chart-1)" dot={false} name="Mitattu huone" />
                   {sMode.hasFloor && <Line type="monotone" dataKey="lattia" stroke="var(--chart-4)" dot={false} name="Mitattu lattia" />}
                   <Line type="monotone" dataKey="asetus" stroke="var(--chart-2)" strokeDasharray="4 4" dot={false} name="Asetus" />
