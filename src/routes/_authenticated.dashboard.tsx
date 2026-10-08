@@ -92,12 +92,6 @@ function DashboardPage() {
           icon={Thermometer}
           to="/zones"
         />
-        <StatCard
-          label="Energia 24 h"
-          value={`${o.energy24h.toFixed(1)} kWh`}
-          icon={Zap}
-          to="/energy"
-        />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -172,10 +166,6 @@ function DashboardPage() {
             </Link>
             <Link to="/schedules" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
               <span>Hallitse aikatauluja</span>
-              <ArrowRight className="card-arrow h-4 w-4" />
-            </Link>
-            <Link to="/energy" className="hover-lift card-interactive flex items-center justify-between rounded-xl border p-3">
-              <span>Tarkastele energiankulutusta</span>
               <ArrowRight className="card-arrow h-4 w-4" />
             </Link>
           </CardContent>

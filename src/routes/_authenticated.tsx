@@ -27,7 +27,6 @@ const NAV = [
   { to: "/devices", label: "Laitteet", icon: Radio },
   { to: "/zones", label: "Vyöhykkeet", icon: Layers },
   { to: "/schedules", label: "Aikataulut", icon: Calendar },
-  { to: "/energy", label: "Energia", icon: BarChart3 },
   { to: "/settings", label: "Asetukset", icon: Settings },
 ] as const;
 
