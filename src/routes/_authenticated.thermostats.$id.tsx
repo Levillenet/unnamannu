@@ -452,13 +452,34 @@ function ThermostatPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Lämpötilat (7 vrk)</CardTitle>
+            <CardTitle className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
+              Lämpötilat (7 vrk)
+              {isHeatingNow && (
+                <Badge variant="secondary" className="bg-warning/15 text-warning">
+                  <Flame className="mr-1 h-3 w-3" /> Lämmittää nyt
+                </Badge>
+              )}
+              {heatingMinutes24h > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  Lämmittänyt n. {heatingMinutes24h} min viimeisen 24 h aikana
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  {heatingSegments.map((s, i) => (
+                    <ReferenceArea
+                      key={i}
+                      x1={s.x1}
+                      x2={s.x2}
+                      fill="hsl(var(--warning) / 0.12)"
+                      stroke="none"
+                    />
+                  ))}
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 8)} />
                   <YAxis tick={{ fontSize: 10 }} domain={[10, 35]} />
                   <Tooltip />
@@ -468,6 +489,11 @@ function ThermostatPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {heatingSegments.length > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Värillinen tausta = termostaatti lämmitti (rele päällä) sillä jaksolla.
+              </p>
+            )}
           </CardContent>
         </Card>
 
