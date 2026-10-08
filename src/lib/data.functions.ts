@@ -100,9 +100,10 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
     const lastSyncAt: string | null = lastRow?.ts ?? null;
+    // Synkronointi ajetaan 15 min välein (*/15 * * * *) — seuraava vartti
     const next = new Date();
-    next.setUTCMinutes(0, 0, 0);
-    next.setUTCHours(next.getUTCHours() + 1);
+    next.setUTCSeconds(0, 0);
+    next.setUTCMinutes(Math.floor(next.getUTCMinutes() / 15) * 15 + 15);
 
     return {
       building,

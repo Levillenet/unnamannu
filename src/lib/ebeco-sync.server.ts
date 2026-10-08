@@ -44,6 +44,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
     setpoint: number | null;
     room_temp: number | null;
     floor_temp: number | null;
+    heating: boolean | null;
   }> = [];
 
   for (const d of devices) {
