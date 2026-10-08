@@ -5,6 +5,7 @@ import {
   fetchDevicesDetailed,
   pickRoomTemp,
   pickFloorTemp,
+  pickHeating,
   ebecoPatchToColumns,
   type EbecoPatch,
 } from "./ebeco.server";
