@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, Plus, Droplet, Thermometer, ExternalLink, Flame } from "lucide-react";
 import { useState, Fragment } from "react";
 import { toast } from "sonner";
 import { useIsAdmin } from "@/hooks/use-current-role";
@@ -258,6 +258,22 @@ function ApartmentsPage() {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
+                                        {(() => {
+                                          const relay = (t.ebeco_settings as Record<string, unknown> | null)?.relayOn;
+                                          if (relay === true)
+                                            return (
+                                              <Badge variant="outline" className="border-warning/40 text-warning">
+                                                <Flame className="mr-1 h-3 w-3" /> Lämmittää nyt
+                                              </Badge>
+                                            );
+                                          if (relay === false)
+                                            return (
+                                              <Badge variant="outline" className="text-muted-foreground">
+                                                Ei lämmitä nyt
+                                              </Badge>
+                                            );
+                                          return null;
+                                        })()}
                                         {t.status === "online" ? (
                                           <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
                                         ) : t.status === "offline" ? (
