@@ -72,6 +72,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
         setpoint,
         room_temp: pickRoomTemp(d),
         floor_temp: pickFloorTemp(d),
+        heating: pickHeating(d),
       });
     } else {
       const { data: ins, error } = await (supabase.from("thermostats") as any)
@@ -98,6 +99,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
         setpoint,
         room_temp: pickRoomTemp(d),
         floor_temp: pickFloorTemp(d),
+        heating: pickHeating(d),
       });
     }
   }
