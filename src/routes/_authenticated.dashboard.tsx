@@ -1,9 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { getBuildingOverview, listApartments } from "@/lib/data.functions";
+import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { getBuildingOverview, listApartments, syncAllNow } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
+
+function RefreshNowButton() {
+  const run = useServerFn(syncAllNow);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res: any = await run({});
+          toast.success(
+            `Tiedot päivitetty Ebecosta${res.actions ? ` · ${res.actions} rajatoimea` : ""}`,
+          );
+          await qc.invalidateQueries();
+        } catch (e) {
+          toast.error(`Päivitys epäonnistui: ${(e as Error).message}`);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <RefreshCw className={`mr-2 h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+      {busy ? "Päivitetään…" : "Päivitä nyt"}
+    </Button>
+  );
+}
 
 const overviewQO = queryOptions({ queryKey: ["overview"], queryFn: () => getBuildingOverview() });
 const apartmentsQO = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
