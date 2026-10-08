@@ -1,9 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { getBuildingOverview, listApartments } from "@/lib/data.functions";
+import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { getBuildingOverview, listApartments, syncAllNow } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
+
+function RefreshNowButton() {
+  const run = useServerFn(syncAllNow);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const res: any = await run({});
+          toast.success(
+            `Tiedot päivitetty Ebecosta${res.actions ? ` · ${res.actions} rajatoimea` : ""}`,
+          );
+          await qc.invalidateQueries();
+        } catch (e) {
+          toast.error(`Päivitys epäonnistui: ${(e as Error).message}`);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <RefreshCw className={`mr-2 h-4 w-4 ${busy ? "animate-spin" : ""}`} />
+      {busy ? "Päivitetään…" : "Päivitä nyt"}
+    </Button>
+  );
+}
 
 const overviewQO = queryOptions({ queryKey: ["overview"], queryFn: () => getBuildingOverview() });
 const apartmentsQO = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
@@ -66,13 +100,16 @@ function DashboardPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Yleisnäkymä</h1>
         <p className="text-sm text-muted-foreground">{o.building?.name ?? "Hotelli"}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Tiedot päivitetty:{" "}
-          {o.lastSyncAt
-            ? new Date(o.lastSyncAt).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" })
-            : "—"}
-          {" · "}Seuraava päivitys:{" "}
-          {new Date(o.nextSyncAt).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}
+        <p className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+          <span>
+            Tiedot päivitetty:{" "}
+            {o.lastSyncAt
+              ? new Date(o.lastSyncAt).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" })
+              : "—"}
+            {" · "}Seuraava päivitys:{" "}
+            {new Date(o.nextSyncAt).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}
+          </span>
+          <RefreshNowButton />
         </p>
       </div>
 
