@@ -33,13 +33,20 @@ function ThermostatCard({ t }: { t: any }) {
               )}
               {t.room ?? t.name}
             </span>
-            {t.status === "online" ? (
-              <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
-            ) : t.status === "offline" ? (
-              <Badge variant="secondary">Offline</Badge>
-            ) : (
-              <Badge variant="destructive">Hälytys</Badge>
-            )}
+            <span className="flex items-center gap-1.5">
+              {(t.ebeco_settings as any)?.relayOn === true && (
+                <Badge variant="secondary" className="bg-warning/15 text-warning">
+                  <Flame className="mr-1 h-3 w-3" /> Lämmittää
+                </Badge>
+              )}
+              {t.status === "online" ? (
+                <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
+              ) : t.status === "offline" ? (
+                <Badge variant="secondary">Offline</Badge>
+              ) : (
+                <Badge variant="destructive">Hälytys</Badge>
+              )}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
