@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ShieldAlert, Link2Off, RefreshCw } from "lucide-react";
 import { ThermostatSettingsTabs } from "@/components/ThermostatSettingsTabs";
 
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -128,7 +128,6 @@ function ThermostatPage() {
       huone: Number(r.room_temp),
       lattia: r.floor_temp == null ? null : Number(r.floor_temp),
       asetus: Number(r.setpoint),
-      teho: Number(r.power_w),
     }));
 
   // Huonelämpötila: Ebecon viimeisin snapshot ensisijaisesti, tai uusin reading.
@@ -449,24 +448,6 @@ function ThermostatPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-base">Teho (W)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 12)} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Bar dataKey="teho" fill="var(--chart-1)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="lg:col-span-3">
           <CardHeader>
