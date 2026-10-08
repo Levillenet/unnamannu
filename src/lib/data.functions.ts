@@ -291,7 +291,7 @@ export const getThermostat = createServerFn({ method: "GET" })
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const { data: readings } = await supabase
       .from("thermostat_readings")
-      .select("ts,room_temp,floor_temp,setpoint,power_w,energy_kwh,event")
+      .select("ts,room_temp,floor_temp,setpoint,power_w,energy_kwh,event,heating")
       .eq("thermostat_id", data.id)
       .gte("ts", since)
       .order("ts");
