@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getBuildingOverview, listApartments } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Thermometer, Zap, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight } from "lucide-react";
+import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight } from "lucide-react";
 
 const overviewQO = queryOptions({ queryKey: ["overview"], queryFn: () => getBuildingOverview() });
 const apartmentsQO = queryOptions({ queryKey: ["apartments"], queryFn: () => listApartments() });
