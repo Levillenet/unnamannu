@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu, RefreshCw } from "lucide-react";
+import { ChevronLeft, Thermometer, Droplet, NotebookPen, Cpu, RefreshCw, Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,13 +33,20 @@ function ThermostatCard({ t }: { t: any }) {
               )}
               {t.room ?? t.name}
             </span>
-            {t.status === "online" ? (
-              <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
-            ) : t.status === "offline" ? (
-              <Badge variant="secondary">Offline</Badge>
-            ) : (
-              <Badge variant="destructive">Hälytys</Badge>
-            )}
+            <span className="flex items-center gap-1.5">
+              {(t.ebeco_settings as any)?.relayOn === true && (
+                <Badge variant="secondary" className="bg-warning/15 text-warning">
+                  <Flame className="mr-1 h-3 w-3" /> Lämmittää
+                </Badge>
+              )}
+              {t.status === "online" ? (
+                <Badge variant="outline" className="border-success/40 text-success">Online</Badge>
+              ) : t.status === "offline" ? (
+                <Badge variant="secondary">Offline</Badge>
+              ) : (
+                <Badge variant="destructive">Hälytys</Badge>
+              )}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>

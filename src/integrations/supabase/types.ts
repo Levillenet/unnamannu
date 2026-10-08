@@ -223,6 +223,7 @@ export type Database = {
           energy_kwh: number | null
           event: string | null
           floor_temp: number | null
+          heating: boolean | null
           id: number
           power_w: number | null
           room_temp: number | null
@@ -234,6 +235,7 @@ export type Database = {
           energy_kwh?: number | null
           event?: string | null
           floor_temp?: number | null
+          heating?: boolean | null
           id?: number
           power_w?: number | null
           room_temp?: number | null
@@ -245,6 +247,7 @@ export type Database = {
           energy_kwh?: number | null
           event?: string | null
           floor_temp?: number | null
+          heating?: boolean | null
           id?: number
           power_w?: number | null
           room_temp?: number | null

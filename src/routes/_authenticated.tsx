@@ -84,8 +84,8 @@ function AuthenticatedLayout() {
         runningRef.current = false;
       }
     };
-    // Taustatyö hoitaa päivitykset tunnin välein; selain tarkistaa myös kerran tunnissa
-    const handle = setInterval(tick, 3_600_000);
+    // Taustatyö hoitaa päivitykset 15 min välein; selain tarkistaa samalla syklillä
+    const handle = setInterval(tick, 900_000);
     return () => {
       alive = false;
       clearInterval(handle);

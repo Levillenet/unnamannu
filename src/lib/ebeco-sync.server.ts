@@ -5,6 +5,7 @@ import {
   fetchDevicesDetailed,
   pickRoomTemp,
   pickFloorTemp,
+  pickHeating,
   ebecoPatchToColumns,
   type EbecoPatch,
 } from "./ebeco.server";
@@ -43,6 +44,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
     setpoint: number | null;
     room_temp: number | null;
     floor_temp: number | null;
+    heating: boolean | null;
   }> = [];
 
   for (const d of devices) {
@@ -70,6 +72,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
         setpoint,
         room_temp: pickRoomTemp(d),
         floor_temp: pickFloorTemp(d),
+        heating: pickHeating(d),
       });
     } else {
       const { data: ins, error } = await (supabase.from("thermostats") as any)
@@ -96,6 +99,7 @@ export async function syncEbecoIntoSupabase(supabase: SupabaseClient): Promise<S
         setpoint,
         room_temp: pickRoomTemp(d),
         floor_temp: pickFloorTemp(d),
+        heating: pickHeating(d),
       });
     }
   }

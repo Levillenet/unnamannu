@@ -284,6 +284,11 @@ export function pickFloorTemp(d: EbecoDevice): number | null {
   return null;
 }
 
+export function pickHeating(d: EbecoDevice): boolean | null {
+  if (typeof d.relayOn === "boolean") return d.relayOn;
+  return null;
+}
+
 // Mapping between Ebeco patch field names and our local thermostats columns.
 // Used so a single broadcast/update reflects in both the API call and the DB row.
 export const EBECO_TO_COLUMN: Partial<Record<EbecoPatchField, string>> = {

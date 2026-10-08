@@ -11,10 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ShieldAlert, Link2Off, RefreshCw } from "lucide-react";
+import { ChevronLeft, ShieldAlert, Link2Off, RefreshCw, Flame } from "lucide-react";
 import { ThermostatSettingsTabs } from "@/components/ThermostatSettingsTabs";
 
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceArea } from "recharts";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -128,7 +128,30 @@ function ThermostatPage() {
       huone: Number(r.room_temp),
       lattia: r.floor_temp == null ? null : Number(r.floor_temp),
       asetus: Number(r.setpoint),
+      heating: (r as any).heating === true,
     }));
+
+  // Lämmitysjaksot (relayOn) värillisinä taustakaistoina lämpötilagraafissa
+  const heatingSegments: { x1: string; x2: string }[] = [];
+  let segStart: string | null = null;
+  for (const p of chartData) {
+    if (p.heating && segStart === null) segStart = p.time;
+    if (!p.heating && segStart !== null) {
+      heatingSegments.push({ x1: segStart, x2: p.time });
+      segStart = null;
+    }
+  }
+  if (segStart !== null && chartData.length > 0) {
+    heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].time });
+  }
+  const heatingMinutes24h = (() => {
+    const cutoff = Date.now() - 24 * 3600_000;
+    return data.readings.filter(
+      (r: any) => !r.event && (r as any).heating === true && new Date(r.ts as string).getTime() >= cutoff,
+    ).length * 15;
+  })();
+  const heatingNow = [...data.readings].reverse().find((r: any) => !r.event && (r as any).heating != null) as any;
+  const isHeatingNow = heatingNow?.heating === true;
 
   // Huonelämpötila: Ebecon viimeisin snapshot ensisijaisesti, tai uusin reading.
   const ebSettings = (t.ebeco_settings ?? {}) as Record<string, unknown>;
@@ -429,13 +452,34 @@ function ThermostatPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Lämpötilat (7 vrk)</CardTitle>
+            <CardTitle className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
+              Lämpötilat (7 vrk)
+              {isHeatingNow && (
+                <Badge variant="secondary" className="bg-warning/15 text-warning">
+                  <Flame className="mr-1 h-3 w-3" /> Lämmittää nyt
+                </Badge>
+              )}
+              {heatingMinutes24h > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  Lämmittänyt n. {heatingMinutes24h} min viimeisen 24 h aikana
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  {heatingSegments.map((s, i) => (
+                    <ReferenceArea
+                      key={i}
+                      x1={s.x1}
+                      x2={s.x2}
+                      fill="hsl(var(--warning) / 0.12)"
+                      stroke="none"
+                    />
+                  ))}
                   <XAxis dataKey="time" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 8)} />
                   <YAxis tick={{ fontSize: 10 }} domain={[10, 35]} />
                   <Tooltip />
@@ -445,6 +489,11 @@ function ThermostatPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {heatingSegments.length > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Värillinen tausta = termostaatti lämmitti (rele päällä) sillä jaksolla.
+              </p>
+            )}
           </CardContent>
         </Card>
 
