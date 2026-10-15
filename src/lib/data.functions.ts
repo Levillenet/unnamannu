@@ -723,25 +723,39 @@ async function pushPatchToTargets(
 
   const { data: rows, error } = await supabase
     .from("thermostats")
-    .select("id,ebeco_device_id")
+    .select("id,ebeco_device_id,name")
     .in("id", targetIds);
   if (error) throw new Error(error.message);
 
   const withEbeco = (rows ?? []).filter((r: any) => r.ebeco_device_id);
-  const results = await Promise.allSettled(
-    withEbeco.map((r: any) =>
-      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(
-        () => ({ localId: r.id as string, ebecoId: Number(r.ebeco_device_id) }),
-      ),
-    ),
-  );
-
   const succeeded: { localId: string; ebecoId: number }[] = [];
   const errors: string[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") succeeded.push(r.value);
-    else errors.push(String((r.reason as Error)?.message ?? r.reason));
+  const failedNames: string[] = [];
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // Peräkkäin pienellä tauolla + uusintayritykset: Ebeco torjuu rinnakkaiset pyynnöt.
+  for (const r of withEbeco as any[]) {
+    const ebecoId = Number(r.ebeco_device_id);
+    let lastErr: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await updateDevice({ id: ebecoId, ...patch });
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = String((e as Error)?.message ?? e);
+        console.error(`[pushPatchToTargets] ${r.name} (${ebecoId}) yritys ${attempt + 1}: ${lastErr}`);
+        await sleep(800 * (attempt + 1));
+      }
+    }
+    if (lastErr) {
+      errors.push(`${r.name}: ${lastErr}`);
+      failedNames.push(r.name);
+    } else {
+      succeeded.push({ localId: r.id, ebecoId });
+    }
+    await sleep(300);
   }
+  const results = { length: withEbeco.length };
 
   // Hae onnistuneille laitteille tuore tila Ebecosta yhdellä listakutsulla
   // ja tallenna täysi snapshot + kaikki mapatut sarakkeet paikallisesti.
