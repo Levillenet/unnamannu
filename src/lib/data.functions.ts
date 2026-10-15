@@ -722,8 +722,8 @@ async function pushPatchToTargets(
   supabase: any,
   targetIds: string[],
   patch: EbecoPatch,
-): Promise<{ succeeded: number; failed: number; errors: string[] }> {
-  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [] };
+): Promise<{ succeeded: number; failed: number; errors: string[]; failedNames: string[] }> {
+  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [], failedNames: [] };
 
   const { data: rows, error } = await supabase
     .from("thermostats")
