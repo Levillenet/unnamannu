@@ -523,6 +523,8 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     let applied = 0;
     let pushed = 0;
     let pushFailed = 0;
+    let pushErrors: string[] = [];
+    let failedNames: string[] = [];
     if (applyToAll) {
       // Vie oletuslämpötila + asiakasmaksimi vyöhykkeen termostaatteihin
       // ja lähetä ne heti Ebecoon.
@@ -546,6 +548,8 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
         } as EbecoPatch);
         pushed = res.succeeded;
         pushFailed = res.failed;
+        pushErrors = res.errors;
+        failedNames = res.failedNames;
       }
     }
     let lockPushed = 0;
@@ -804,7 +808,7 @@ async function pushPatchToTargets(
     }
   }
 
-  return { succeeded: succeeded.length, failed: results.length - succeeded.length, errors };
+  return { succeeded: succeeded.length, failed: results.length - succeeded.length, errors, failedNames };
 }
 
 export const updateThermostatSettings = createServerFn({ method: "POST" })
