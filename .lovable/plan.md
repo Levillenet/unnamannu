@@ -18,3 +18,23 @@ Sovellus lähettää kaikki 11 muutosta Ebecoon yhtä aikaa. Ebeco todennäköis
 - `pushPatchToTargets` (`src/lib/data.functions.ts`): `Promise.allSettled` → peräkkäinen silmukka ~300 ms viiveellä, 2 uusintayritystä takaisinvedolla; palauttaa `failedNames` + `errors`; `console.error` jokaisesta virheestä.
 - `saveZoneDefault`, `setZonePower`, `syncApartmentNow` hyötyvät samasta funktiosta; audit_log-detailsiin lisätään `errors`.
 - `zones.tsx`-toast näyttää `failedNames` ja ensimmäisen virheviestin.
+
+---
+
+# Uusi näkymä: Lämmitysaste ja tavoitteen saavuttaminen
+
+Uusi valikkokohta "Lämmitysaste", jossa jokaiselle termostaatille:
+- **Lämmitysaste %** viimeisen 4 h ja 24 h aikana (kuinka suuren osan ajasta rele oli päällä, 15 min mittauksista).
+- **Tavoite saavutettu?** Ohjaavan anturin lämpötila verrattuna asetukseen: ero °C ja tila.
+- **Tila-merkki:**
+  - Punainen "Ei saavuta tavoitetta" — lämmittää yli 90 % ajasta ja on yhä yli 1 °C alle asetuksen → vaatii toimenpiteitä (esim. väärä anturitila, liian pieni lämmitysteho, avoin ikkuna).
+  - Keltainen "Lämmittää paljon" — yli 70 % ajasta, mutta tavoite lähes saavutettu.
+  - Vihreä "OK" — tavoite saavutettu.
+  - Harmaa "Ei dataa / pois päältä".
+- Lista järjestetään ongelmallisimmat ensin, suodatus vyöhykkeen mukaan, rivistä pääsee termostaatin sivulle.
+- Etusivulle pieni huomio: "X termostaattia ei saavuta tavoitetta" linkkinä näkymään.
+
+## Tekninen osa
+- Uusi palvelinfunktio `getHeatingDuty` (`data.functions.ts`): hakee `thermostat_readings` 24 h (heating, room_temp, floor_temp, setpoint), laskee duty % 4 h / 24 h ja viimeisimmän eron ohjaavalla anturilla (`sensor.ts`).
+- Uusi reitti `src/routes/_authenticated.heating.tsx` + NAV-linkki; head-metatiedot.
+- Dashboard-kortti käyttää samaa funktiota.
