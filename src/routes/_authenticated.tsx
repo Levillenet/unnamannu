@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Home, Calendar, Settings, LogOut, Layers, Radio, Menu, X, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Home, Calendar, Settings, LogOut, Layers, Radio, Flame, Menu, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/levi-suites-logo.png";
@@ -26,6 +26,7 @@ const NAV = [
   { to: "/apartments", label: "Huoneet", icon: Home },
   { to: "/devices", label: "Laitteet", icon: Radio },
   { to: "/zones", label: "Vyöhykkeet", icon: Layers },
+  { to: "/heating", label: "Lämmitysaste", icon: Flame },
   { to: "/schedules", label: "Aikataulut", icon: Calendar },
   { to: "/settings", label: "Asetukset", icon: Settings },
 ] as const;

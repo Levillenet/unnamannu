@@ -17,6 +17,7 @@ import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AuthenticatedApartmentsRouteImport } from './routes/_authenticated.apartments'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedDevicesRouteImport } from './routes/_authenticated.devices'
+import { Route as AuthenticatedHeatingRouteImport } from './routes/_authenticated.heating'
 import { Route as AuthenticatedMaxExceedancesRouteImport } from './routes/_authenticated.max-exceedances'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated.schedules'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
@@ -63,6 +64,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedDevicesRoute = AuthenticatedDevicesRouteImport.update({
   id: '/devices',
   path: '/devices',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHeatingRoute = AuthenticatedHeatingRouteImport.update({
+  id: '/heating',
+  path: '/heating',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedMaxExceedancesRoute =
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
+  '/heating': typeof AuthenticatedHeatingRoute
   '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/devices': typeof AuthenticatedDevicesRoute
+  '/heating': typeof AuthenticatedHeatingRoute
   '/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/_authenticated/apartments': typeof AuthenticatedApartmentsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/devices': typeof AuthenticatedDevicesRoute
+  '/_authenticated/heating': typeof AuthenticatedHeatingRoute
   '/_authenticated/max-exceedances': typeof AuthenticatedMaxExceedancesRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/apartments'
     | '/dashboard'
     | '/devices'
+    | '/heating'
     | '/max-exceedances'
     | '/schedules'
     | '/settings'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/apartments'
     | '/dashboard'
     | '/devices'
+    | '/heating'
     | '/max-exceedances'
     | '/schedules'
     | '/settings'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/_authenticated/apartments'
     | '/_authenticated/dashboard'
     | '/_authenticated/devices'
+    | '/_authenticated/heating'
     | '/_authenticated/max-exceedances'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: '/devices'
       fullPath: '/devices'
       preLoaderRoute: typeof AuthenticatedDevicesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/heating': {
+      id: '/_authenticated/heating'
+      path: '/heating'
+      fullPath: '/heating'
+      preLoaderRoute: typeof AuthenticatedHeatingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/max-exceedances': {
@@ -362,6 +381,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedApartmentsRoute: typeof AuthenticatedApartmentsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDevicesRoute: typeof AuthenticatedDevicesRoute
+  AuthenticatedHeatingRoute: typeof AuthenticatedHeatingRoute
   AuthenticatedMaxExceedancesRoute: typeof AuthenticatedMaxExceedancesRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -373,6 +393,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApartmentsRoute: AuthenticatedApartmentsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDevicesRoute: AuthenticatedDevicesRoute,
+  AuthenticatedHeatingRoute: AuthenticatedHeatingRoute,
   AuthenticatedMaxExceedancesRoute: AuthenticatedMaxExceedancesRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

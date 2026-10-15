@@ -523,6 +523,8 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     let applied = 0;
     let pushed = 0;
     let pushFailed = 0;
+    let pushErrors: string[] = [];
+    let failedNames: string[] = [];
     if (applyToAll) {
       // Vie oletuslämpötila + asiakasmaksimi vyöhykkeen termostaatteihin
       // ja lähetä ne heti Ebecoon.
@@ -546,6 +548,8 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
         } as EbecoPatch);
         pushed = res.succeeded;
         pushFailed = res.failed;
+        pushErrors = res.errors;
+        failedNames = res.failedNames;
       }
     }
     let lockPushed = 0;
@@ -570,9 +574,9 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: existing ? "zone.update" : "zone.create",
       entity_type: "zone", entity_id: row.zone,
-      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed },
+      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed, pushErrors },
     });
-    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed };
+    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed, failedNames, pushErrors };
   });
 
 
@@ -718,30 +722,44 @@ async function pushPatchToTargets(
   supabase: any,
   targetIds: string[],
   patch: EbecoPatch,
-): Promise<{ succeeded: number; failed: number; errors: string[] }> {
-  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [] };
+): Promise<{ succeeded: number; failed: number; errors: string[]; failedNames: string[] }> {
+  if (targetIds.length === 0) return { succeeded: 0, failed: 0, errors: [], failedNames: [] };
 
   const { data: rows, error } = await supabase
     .from("thermostats")
-    .select("id,ebeco_device_id")
+    .select("id,ebeco_device_id,name")
     .in("id", targetIds);
   if (error) throw new Error(error.message);
 
   const withEbeco = (rows ?? []).filter((r: any) => r.ebeco_device_id);
-  const results = await Promise.allSettled(
-    withEbeco.map((r: any) =>
-      updateDevice({ id: Number(r.ebeco_device_id), ...patch }).then(
-        () => ({ localId: r.id as string, ebecoId: Number(r.ebeco_device_id) }),
-      ),
-    ),
-  );
-
   const succeeded: { localId: string; ebecoId: number }[] = [];
   const errors: string[] = [];
-  for (const r of results) {
-    if (r.status === "fulfilled") succeeded.push(r.value);
-    else errors.push(String((r.reason as Error)?.message ?? r.reason));
+  const failedNames: string[] = [];
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // Peräkkäin pienellä tauolla + uusintayritykset: Ebeco torjuu rinnakkaiset pyynnöt.
+  for (const r of withEbeco as any[]) {
+    const ebecoId = Number(r.ebeco_device_id);
+    let lastErr: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await updateDevice({ id: ebecoId, ...patch });
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = String((e as Error)?.message ?? e);
+        console.error(`[pushPatchToTargets] ${r.name} (${ebecoId}) yritys ${attempt + 1}: ${lastErr}`);
+        await sleep(800 * (attempt + 1));
+      }
+    }
+    if (lastErr) {
+      errors.push(`${r.name}: ${lastErr}`);
+      failedNames.push(r.name);
+    } else {
+      succeeded.push({ localId: r.id, ebecoId });
+    }
+    await sleep(300);
   }
+  const results = { length: withEbeco.length };
 
   // Hae onnistuneille laitteille tuore tila Ebecosta yhdellä listakutsulla
   // ja tallenna täysi snapshot + kaikki mapatut sarakkeet paikallisesti.
@@ -790,7 +808,7 @@ async function pushPatchToTargets(
     }
   }
 
-  return { succeeded: succeeded.length, failed: results.length - succeeded.length, errors };
+  return { succeeded: succeeded.length, failed: results.length - succeeded.length, errors, failedNames };
 }
 
 export const updateThermostatSettings = createServerFn({ method: "POST" })
@@ -1062,4 +1080,68 @@ export const setZonePower = createServerFn({ method: "POST" })
       details: { count: ids.length, pushed: res.succeeded, failed: res.failed },
     });
     return { count: ids.length, pushed: res.succeeded, failed: res.failed };
+  });
+
+// ============= Lämmitysaste (duty %) ja tavoitteen saavuttaminen =============
+export const getHeatingDuty = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: ts, error } = await supabase
+      .from("thermostats")
+      .select("id,name,zone,enabled,status,current_setpoint,ebeco_settings,apartment_id,apartments(number)");
+    if (error) throw new Error(error.message);
+    const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const since4 = Date.now() - 4 * 3600_000;
+    const all: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error: e } = await supabase
+        .from("thermostat_readings")
+        .select("thermostat_id,ts,heating")
+        .gte("ts", since)
+        .is("event", null)
+        .not("heating", "is", null)
+        .range(from, from + 999);
+      if (e) throw new Error(e.message);
+      all.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const agg = new Map<string, { n24: number; h24: number; n4: number; h4: number }>();
+    for (const r of all) {
+      const a = agg.get(r.thermostat_id) ?? { n24: 0, h24: 0, n4: 0, h4: 0 };
+      a.n24++;
+      if (r.heating) a.h24++;
+      if (new Date(r.ts).getTime() >= since4) {
+        a.n4++;
+        if (r.heating) a.h4++;
+      }
+      agg.set(r.thermostat_id, a);
+    }
+    const rows = (ts ?? []).map((t: any) => {
+      const a = agg.get(t.id);
+      const eb = (t.ebeco_settings ?? {}) as Record<string, any>;
+      const app = String(eb.sensorApplication ?? "").toLowerCase();
+      const primaryFloor = app.startsWith("floor");
+      const pick = (d: any, i: any) => (typeof d === "number" ? d : typeof i === "number" ? i : null);
+      const measured = primaryFloor
+        ? pick(eb.temperatureFloorDecimals, eb.temperatureFloor)
+        : pick(eb.temperatureRoomDecimals, eb.temperatureRoom);
+      const target = Number(t.current_setpoint);
+      return {
+        id: t.id as string,
+        name: t.name as string,
+        zone: t.zone as string,
+        apartment: (t.apartments as any)?.number ?? null,
+        enabled: t.enabled !== false && eb.powerOn !== false,
+        status: t.status as string,
+        sensor: primaryFloor ? "lattia" : "huone",
+        measured,
+        target,
+        diff: measured != null ? Math.round((measured - target) * 10) / 10 : null,
+        duty4h: a && a.n4 > 0 ? Math.round((a.h4 / a.n4) * 100) : null,
+        duty24h: a && a.n24 > 0 ? Math.round((a.h24 / a.n24) * 100) : null,
+        samples24h: a?.n24 ?? 0,
+      };
+    });
+    return { rows };
   });
