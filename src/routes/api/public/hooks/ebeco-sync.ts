@@ -10,12 +10,16 @@ export const Route = createFileRoute("/api/public/hooks/ebeco-sync")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const cronSecret = process.env.CRON_SECRET;
+        const cronProvided = request.headers.get("x-cron-secret");
         const expected = process.env.SUPABASE_PUBLISHABLE_KEY;
         const provided =
           request.headers.get("apikey") ??
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
           "";
-        if (!expected || provided !== expected) {
+        const okCron = !!cronSecret && !!cronProvided && cronProvided === cronSecret;
+        const okKey = !!expected && provided === expected;
+        if (!okCron && !okKey) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
