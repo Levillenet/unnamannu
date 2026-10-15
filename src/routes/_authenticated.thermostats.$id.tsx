@@ -462,9 +462,14 @@ function ThermostatPage() {
                   <Flame className="mr-1 h-3 w-3" /> Lämmittää nyt
                 </Badge>
               )}
-              {heatingMinutes24h > 0 && (
+              {heatingStats24h.samples > 0 && (
                 <span className="text-xs font-normal text-muted-foreground">
-                  Lämmittänyt n. {heatingMinutes24h} min viimeisen 24 h aikana
+                  Lämmittänyt n. {heatingStats24h.minutes} min viimeisen 24 h aikana
+                  {heatingStats24h.samples < heatingStats24h.expected / 2 && (
+                    <span className="text-warning">
+                      {" "}— perustuu vain {heatingStats24h.samples} mittauspisteeseen (odotettu ~{heatingStats24h.expected}), synkronointi on ollut poikki
+                    </span>
+                  )}
                 </span>
               )}
             </CardTitle>
