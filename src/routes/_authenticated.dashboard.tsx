@@ -2,12 +2,26 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { getBuildingOverview, listApartments, syncAllNow } from "@/lib/data.functions";
+import { getBuildingOverview, listApartments, syncAllNow, getHeatingDuty } from "@/lib/data.functions";
+import { heatStatus } from "@/lib/heating-status";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
+
+function HeatingAlert() {
+  const q = useQuery({ queryKey: ["heating-duty"], queryFn: () => getHeatingDuty() });
+  const n = (q.data?.rows ?? []).filter((r) => heatStatus(r) === "problem").length;
+  if (!n) return null;
+  return (
+    <Link to="/heating" className="mb-4 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+      <AlertTriangle className="h-4 w-4" /> {n} termostaattia ei saavuta tavoitelämpötilaa — katso lämmitysaste
+      <ArrowRight className="ml-auto h-4 w-4" />
+    </Link>
+  );
+}
 
 function RefreshNowButton() {
   const run = useServerFn(syncAllNow);
@@ -97,6 +111,7 @@ function DashboardPage() {
 
   return (
     <div className="p-8">
+      <HeatingAlert />
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Yleisnäkymä</h1>
         <p className="text-sm text-muted-foreground">{o.building?.name ?? "Hotelli"}</p>
