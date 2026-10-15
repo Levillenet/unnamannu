@@ -420,7 +420,11 @@ function ZonesPage() {
       const v = vars.data;
       if (v.applyToAll) {
         const msg = `Oletus ${v.default_setpoint} °C asetettu ${r?.applied ?? 0} termostaattiin · Ebecoon lähetetty ${r?.pushed ?? 0}`;
-        if (r?.pushFailed) toast.warning(`${msg} · epäonnistui ${r.pushFailed} (esim. offline)`);
+        if (r?.pushFailed)
+          toast.warning(`${msg} · epäonnistui ${r.pushFailed}: ${(r.failedNames ?? []).join(", ")}`, {
+            description: r.pushErrors?.[0],
+            duration: 15000,
+          });
         else toast.success(msg);
       }
       else if (typeof v.lockAll === "boolean") toast.success(v.lockAll ? "Kaikki lukittu" : "Kaikki vapautettu");

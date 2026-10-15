@@ -574,9 +574,9 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: existing ? "zone.update" : "zone.create",
       entity_type: "zone", entity_id: row.zone,
-      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed },
+      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed, pushErrors },
     });
-    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed };
+    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed, failedNames, pushErrors };
   });
 
 
