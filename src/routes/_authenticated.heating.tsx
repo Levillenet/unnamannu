@@ -114,7 +114,12 @@ function HeatingPage() {
                   </td>
                   <td className="py-2 pr-3 text-xs">{zoneLabel(r.zone)}</td>
                   <td className="py-2 pr-3"><DutyBar v={r.duty4h} /></td>
-                  <td className="py-2 pr-3"><DutyBar v={r.duty24h} /></td>
+                  <td className="py-2 pr-3">
+                    <DutyBar v={r.duty24h} />
+                    {typeof r.samples24h === "number" && r.samples24h < 48 && (
+                      <div className="text-xs text-warning">vain {r.samples24h} mittausta / 24 h</div>
+                    )}
+                  </td>
                   <td className="py-2 pr-3 text-xs tabular-nums">
                     {r.measured != null ? `${r.measured.toFixed(1)}` : "—"} / {r.target.toFixed(1)} °C
                     {r.diff != null && (

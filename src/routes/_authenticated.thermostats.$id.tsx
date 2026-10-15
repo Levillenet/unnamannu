@@ -145,11 +145,13 @@ function ThermostatPage() {
   if (segStart !== null && chartData.length > 0) {
     heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].t + 15 * 60_000 });
   }
-  const heatingMinutes24h = (() => {
+  const heatingStats24h = (() => {
     const cutoff = Date.now() - 24 * 3600_000;
-    return data.readings.filter(
-      (r: any) => !r.event && (r as any).heating === true && new Date(r.ts as string).getTime() >= cutoff,
-    ).length * 15;
+    const samples = data.readings.filter(
+      (r: any) => !r.event && (r as any).heating != null && new Date(r.ts as string).getTime() >= cutoff,
+    );
+    const onCount = samples.filter((r: any) => (r as any).heating === true).length;
+    return { minutes: onCount * 15, samples: samples.length, expected: 96 };
   })();
   const heatingNow = [...data.readings].reverse().find((r: any) => !r.event && (r as any).heating != null) as any;
   const isHeatingNow = heatingNow?.heating === true;
@@ -460,9 +462,14 @@ function ThermostatPage() {
                   <Flame className="mr-1 h-3 w-3" /> Lämmittää nyt
                 </Badge>
               )}
-              {heatingMinutes24h > 0 && (
+              {heatingStats24h.samples > 0 && (
                 <span className="text-xs font-normal text-muted-foreground">
-                  Lämmittänyt n. {heatingMinutes24h} min viimeisen 24 h aikana
+                  Lämmittänyt n. {heatingStats24h.minutes} min viimeisen 24 h aikana
+                  {heatingStats24h.samples < heatingStats24h.expected / 2 && (
+                    <span className="text-warning">
+                      {" "}— perustuu vain {heatingStats24h.samples} mittauspisteeseen (odotettu ~{heatingStats24h.expected}), synkronointi on ollut poikki
+                    </span>
+                  )}
                 </span>
               )}
             </CardTitle>
