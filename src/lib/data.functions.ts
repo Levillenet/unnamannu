@@ -1081,3 +1081,67 @@ export const setZonePower = createServerFn({ method: "POST" })
     });
     return { count: ids.length, pushed: res.succeeded, failed: res.failed };
   });
+
+// ============= Lämmitysaste (duty %) ja tavoitteen saavuttaminen =============
+export const getHeatingDuty = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: ts, error } = await supabase
+      .from("thermostats")
+      .select("id,name,zone,enabled,status,current_setpoint,ebeco_settings,apartment_id,apartments(number)");
+    if (error) throw new Error(error.message);
+    const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const since4 = Date.now() - 4 * 3600_000;
+    const all: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error: e } = await supabase
+        .from("thermostat_readings")
+        .select("thermostat_id,ts,heating")
+        .gte("ts", since)
+        .is("event", null)
+        .not("heating", "is", null)
+        .range(from, from + 999);
+      if (e) throw new Error(e.message);
+      all.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const agg = new Map<string, { n24: number; h24: number; n4: number; h4: number }>();
+    for (const r of all) {
+      const a = agg.get(r.thermostat_id) ?? { n24: 0, h24: 0, n4: 0, h4: 0 };
+      a.n24++;
+      if (r.heating) a.h24++;
+      if (new Date(r.ts).getTime() >= since4) {
+        a.n4++;
+        if (r.heating) a.h4++;
+      }
+      agg.set(r.thermostat_id, a);
+    }
+    const rows = (ts ?? []).map((t: any) => {
+      const a = agg.get(t.id);
+      const eb = (t.ebeco_settings ?? {}) as Record<string, any>;
+      const app = String(eb.sensorApplication ?? "").toLowerCase();
+      const primaryFloor = app.startsWith("floor");
+      const pick = (d: any, i: any) => (typeof d === "number" ? d : typeof i === "number" ? i : null);
+      const measured = primaryFloor
+        ? pick(eb.temperatureFloorDecimals, eb.temperatureFloor)
+        : pick(eb.temperatureRoomDecimals, eb.temperatureRoom);
+      const target = Number(t.current_setpoint);
+      return {
+        id: t.id as string,
+        name: t.name as string,
+        zone: t.zone as string,
+        apartment: (t.apartments as any)?.number ?? null,
+        enabled: t.enabled !== false && eb.powerOn !== false,
+        status: t.status as string,
+        sensor: primaryFloor ? "lattia" : "huone",
+        measured,
+        target,
+        diff: measured != null ? Math.round((measured - target) * 10) / 10 : null,
+        duty4h: a && a.n4 > 0 ? Math.round((a.h4 / a.n4) * 100) : null,
+        duty24h: a && a.n24 > 0 ? Math.round((a.h24 / a.n24) * 100) : null,
+        samples24h: a?.n24 ?? 0,
+      };
+    });
+    return { rows };
+  });
