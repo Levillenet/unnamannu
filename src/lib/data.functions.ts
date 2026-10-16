@@ -487,7 +487,7 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const counts: Record<string, number> = {};
     const lockedCounts: Record<string, number> = {};
     const enabledCounts: Record<string, number> = {};
-    const overrides: Record<string, { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[]> = {};
+    const overrides: Record<string, { id: string; name: string; def: number | null; max: number; note: string | null }[]> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
       if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
@@ -496,7 +496,7 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
         (overrides[t.zone] ??= []).push({
           id: t.id, name: t.name,
           def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
-          max: Number(t.guest_max_setpoint), note: t.override_note, until: t.override_until,
+          max: Number(t.guest_max_setpoint), note: t.override_note,
         });
       }
     }
@@ -1169,7 +1169,6 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
               def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
               max: Number(t.guest_max_setpoint),
               note: (t.override_note as string | null) ?? null,
-              until: (t.override_until as string | null) ?? null,
             }
           : null,
       };

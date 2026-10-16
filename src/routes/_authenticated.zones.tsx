@@ -186,7 +186,7 @@ function ZoneCard({
                 <Link to="/thermostats/$id" params={{ id: o.id }} className="font-medium hover:underline">{o.name}</Link>
                 {" "}— oletus {o.def ?? "—"} °C, yläraja {o.max} °C
                 {o.note ? ` · ${o.note}` : ""}
-                {o.until ? ` · päättyy ${new Date(o.until).toLocaleDateString("fi-FI")}` : ""}
+                {" · voimassa kunnes poistetaan"}
               </div>
             ))}
           </div>
