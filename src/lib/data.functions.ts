@@ -1187,7 +1187,6 @@ export const setThermostatZoneOverride = createServerFn({ method: "POST" })
       default_setpoint: z.number().min(5).max(35).optional(),
       guest_max_setpoint: z.number().min(5).max(35).optional(),
       note: z.string().max(200).nullable().optional(),
-      until: z.string().datetime().nullable().optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
@@ -1209,7 +1208,7 @@ export const setThermostatZoneOverride = createServerFn({ method: "POST" })
         guest_max_setpoint: max,
         current_setpoint: def,
         override_note: data.note ?? null,
-        override_until: data.until ?? null,
+        override_until: null,
         override_set_at: new Date().toISOString(),
         override_set_by: userId,
         override_started_at: null,
