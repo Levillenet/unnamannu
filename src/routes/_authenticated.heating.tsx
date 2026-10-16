@@ -54,10 +54,13 @@ function HeatingPage() {
   const zones = (zd.defaults as any[]).map((z) => ({ zone: z.zone, label: z.label }));
   const zoneLabel = (z: string) => zones.find((o) => o.zone === z)?.label ?? (z === "none" ? "Ei vyöhykettä" : z);
   const [zone, setZone] = useState("all");
+  const [onlyOv, setOnlyOv] = useState(false);
+  const ovCount = data.rows.filter((r) => r.override).length;
 
   const rows = data.rows
     .map((r) => ({ ...r, st: heatStatus(r) }))
     .filter((r) => zone === "all" || r.zone === zone)
+    .filter((r) => !onlyOv || r.override)
     .sort((a, b) => STATUS_ORDER[a.st] - STATUS_ORDER[b.st] || (b.duty24h ?? -1) - (a.duty24h ?? -1));
   const counts = rows.reduce((m, r) => ({ ...m, [r.st]: (m[r.st] ?? 0) + 1 }), {} as Record<string, number>);
 
@@ -90,6 +93,11 @@ function HeatingPage() {
             {STATUS_UI[s].label}: {counts[s] ?? 0}
           </Badge>
         ))}
+        <button type="button" onClick={() => setOnlyOv((v) => !v)}>
+          <Badge variant={onlyOv ? "default" : "outline"} className={onlyOv ? "" : "border-warning/40 text-warning"}>
+            {onlyOv ? "Näytä kaikki" : `Vain poikkeukset: ${ovCount}`}
+          </Badge>
+        </button>
       </div>
 
       <Card>
@@ -117,7 +125,17 @@ function HeatingPage() {
                     </Link>
                     {r.apartment && <div className="text-xs text-muted-foreground">Huoneisto {r.apartment}</div>}
                   </td>
-                  <td className="py-2 pr-3 text-xs">{zoneLabel(r.zone)}</td>
+                  <td className="py-2 pr-3 text-xs">
+                    {zoneLabel(r.zone)}
+                    {r.override && (
+                      <div className="mt-1">
+                        <Badge variant="outline" className="border-warning/40 text-warning">
+                          Poikkeus: {r.override.def != null ? `${r.override.def} °C` : "—"} / max {r.override.max} °C
+                        </Badge>
+                        {r.override.note && <div className="text-muted-foreground">{r.override.note}</div>}
+                      </div>
+                    )}
+                  </td>
                   <td className="py-2 pr-3"><DutyBar v={r.duty4h} /></td>
                   <td className="py-2 pr-3">
                     <DutyBar v={r.duty24h} />
