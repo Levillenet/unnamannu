@@ -482,17 +482,25 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("zone_defaults").select("*").order("label"),
-      supabase.from("thermostats").select("id,zone,locked,enabled"),
+      supabase.from("thermostats").select("id,name,zone,locked,enabled,zone_override,override_default_setpoint,guest_max_setpoint,override_note,override_until"),
     ]);
     const counts: Record<string, number> = {};
     const lockedCounts: Record<string, number> = {};
     const enabledCounts: Record<string, number> = {};
+    const overrides: Record<string, { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[]> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
       if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
       if (t.enabled) enabledCounts[t.zone] = (enabledCounts[t.zone] ?? 0) + 1;
+      if (t.zone_override) {
+        (overrides[t.zone] ??= []).push({
+          id: t.id, name: t.name,
+          def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
+          max: Number(t.guest_max_setpoint), note: t.override_note, until: t.override_until,
+        });
+      }
     }
-    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts };
+    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts, overrides };
   });
 
 export const saveZoneDefault = createServerFn({ method: "POST" })
@@ -1102,7 +1110,7 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: ts, error } = await supabase
       .from("thermostats")
-      .select("id,name,zone,enabled,status,current_setpoint,ebeco_settings,apartment_id,apartments(number)");
+      .select("id,name,zone,enabled,status,current_setpoint,guest_max_setpoint,zone_override,override_default_setpoint,override_note,override_until,ebeco_settings,apartment_id,apartments(number)");
     if (error) throw new Error(error.message);
     const sinceMs = Math.max(Date.now() - 24 * 3600_000, DATA_VALID_FROM_MS);
     const since = new Date(sinceMs).toISOString();
@@ -1156,6 +1164,14 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
         duty4h: a && a.n4 > 0 ? Math.round((a.h4 / a.n4) * 100) : null,
         duty24h: a && a.n24 > 0 ? Math.round((a.h24 / a.n24) * 100) : null,
         samples24h: a?.n24 ?? 0,
+        override: t.zone_override
+          ? {
+              def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
+              max: Number(t.guest_max_setpoint),
+              note: (t.override_note as string | null) ?? null,
+              until: (t.override_until as string | null) ?? null,
+            }
+          : null,
       };
     });
     return { rows, expectedSamples, dataValidFrom: DATA_VALID_FROM };
