@@ -38,17 +38,16 @@ export async function runEnforcementForRows(
   const actions: EnforceAction[] = [];
 
   // Termostaattikohtaiset vyöhykepoikkeukset
-  const ovById = new Map<string, { def: number | null; until: string | null }>();
+  const ovById = new Map<string, { def: number | null }>();
   if (rows.length > 0) {
     const { data: ovRows } = await supabase
       .from("thermostats")
-      .select("id,zone_override,override_default_setpoint,override_until")
+      .select("id,zone_override,override_default_setpoint")
       .in("id", rows.map((r) => r.id))
       .eq("zone_override", true);
     for (const o of ovRows ?? []) {
       ovById.set(o.id, {
         def: o.override_default_setpoint != null ? Number(o.override_default_setpoint) : null,
-        until: o.override_until,
       });
     }
   }

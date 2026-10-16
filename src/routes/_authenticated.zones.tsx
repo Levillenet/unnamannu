@@ -84,7 +84,7 @@ function ZoneCard({
   powering: boolean;
   onDelete: () => void;
   saving: boolean;
-  overrides: { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[];
+  overrides: { id: string; name: string; def: number | null; max: number; note: string | null }[];
 }) {
   const allLocked = count > 0 && lockedCount === count;
   const [guest, setGuest] = useState(Number(row.guest_max_setpoint));
