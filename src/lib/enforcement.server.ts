@@ -37,9 +37,48 @@ export async function runEnforcementForRows(
   const zoneByName = new Map(zones.map((z) => [z.zone, z]));
   const actions: EnforceAction[] = [];
 
+  // Termostaattikohtaiset vyöhykepoikkeukset
+  const ovById = new Map<string, { def: number | null; until: string | null }>();
+  if (rows.length > 0) {
+    const { data: ovRows } = await supabase
+      .from("thermostats")
+      .select("id,zone_override,override_default_setpoint,override_until")
+      .in("id", rows.map((r) => r.id))
+      .eq("zone_override", true);
+    for (const o of ovRows ?? []) {
+      ovById.set(o.id, {
+        def: o.override_default_setpoint != null ? Number(o.override_default_setpoint) : null,
+        until: o.override_until,
+      });
+    }
+  }
+
   for (const t of rows) {
-    const z = zoneByName.get(t.zone);
+    let z = zoneByName.get(t.zone);
     if (!z) continue;
+    const ov = ovById.get(t.id);
+    if (ov) {
+      if (ov.until && new Date(ov.until).getTime() <= now) {
+        // Poikkeus vanhentunut → palaa vyöhykkeen arvoihin
+        const zFull = await supabase.from("zone_defaults").select("guest_max_setpoint").eq("zone", t.zone).limit(1).maybeSingle();
+        const gm = Number(zFull.data?.guest_max_setpoint ?? t.guest_max_setpoint);
+        const sp = Math.min(Number(z.default_setpoint), gm);
+        const eid = t.ebeco_device_id ? Number(t.ebeco_device_id) : null;
+        if (eid && !Number.isNaN(eid)) {
+          try { await updateDevice({ id: eid, temperatureSet: sp, maxSetpoint: gm } as any); } catch (e) {
+            console.error(`[enforce] poikkeuksen päättäminen epäonnistui id=${t.id}:`, (e as Error).message);
+            continue;
+          }
+        }
+        await supabase.from("thermostats").update({
+          zone_override: false, override_default_setpoint: null, override_until: null,
+          guest_max_setpoint: gm, current_setpoint: sp, override_started_at: null, max_hold_started_at: null,
+        }).eq("id", t.id);
+        actions.push({ id: t.id, name: t.name, from: Number(t.current_setpoint), to: sp, reason: "max_hold" });
+        continue;
+      }
+      if (ov.def != null) z = { ...z, default_setpoint: ov.def };
+    }
 
     const setpoint = Number(t.current_setpoint);
     const guestMax = Number(t.guest_max_setpoint);
