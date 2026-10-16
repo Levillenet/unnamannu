@@ -1176,3 +1176,70 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
     });
     return { rows, expectedSamples, dataValidFrom: DATA_VALID_FROM };
   });
+
+// ---------- VYÖHYKEPOIKKEUS ----------
+export const setThermostatZoneOverride = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      enabled: z.boolean(),
+      default_setpoint: z.number().min(5).max(35).optional(),
+      guest_max_setpoint: z.number().min(5).max(35).optional(),
+      note: z.string().max(200).nullable().optional(),
+      until: z.string().datetime().nullable().optional(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: t, error: e1 } = await supabase
+      .from("thermostats").select("id,name,zone").eq("id", data.id).maybeSingle();
+    if (e1 || !t) throw new Error("Termostaattia ei löydy");
+    let def: number;
+    let max: number;
+    let patch: Record<string, unknown>;
+    if (data.enabled) {
+      if (data.default_setpoint == null || data.guest_max_setpoint == null)
+        throw new Error("Oletus ja yläraja vaaditaan");
+      max = data.guest_max_setpoint;
+      def = Math.min(data.default_setpoint, max);
+      patch = {
+        zone_override: true,
+        override_default_setpoint: def,
+        guest_max_setpoint: max,
+        current_setpoint: def,
+        override_note: data.note ?? null,
+        override_until: data.until ?? null,
+        override_set_at: new Date().toISOString(),
+        override_set_by: userId,
+        override_started_at: null,
+        max_hold_started_at: null,
+      };
+    } else {
+      const { data: zd } = await supabase.from("zone_defaults")
+        .select("default_setpoint,guest_max_setpoint").eq("zone", t.zone).limit(1).maybeSingle();
+      max = Number(zd?.guest_max_setpoint ?? 23);
+      def = Math.min(Number(zd?.default_setpoint ?? 21), max);
+      patch = {
+        zone_override: false,
+        override_default_setpoint: null,
+        override_note: null,
+        override_until: null,
+        guest_max_setpoint: max,
+        current_setpoint: def,
+        override_started_at: null,
+        max_hold_started_at: null,
+      };
+    }
+    const { error } = await supabase.from("thermostats").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    const res = await pushPatchToTargets(supabase, [data.id], {
+      temperatureSet: def,
+      maxSetpoint: max,
+    } as EbecoPatch);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: data.enabled ? "thermostat.zone_override_set" : "thermostat.zone_override_clear",
+      entity_type: "thermostat", entity_id: data.id, details: { ...patch, pushed: res.succeeded },
+    });
+    return { ok: true, pushed: res.succeeded, failed: res.failed, error: res.errors[0] ?? null };
+  });
