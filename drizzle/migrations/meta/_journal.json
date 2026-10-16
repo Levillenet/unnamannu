@@ -15,6 +15,13 @@
       "when": 1791443476437,
       "tag": "0001_add_heating_to_readings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792127716212,
+      "tag": "0002_thermostat_zone_override",
+      "breakpoints": true
     }
   ]
 }

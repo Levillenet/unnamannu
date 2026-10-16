@@ -3,7 +3,7 @@ import { DATA_VALID_FROM_MS } from "@/lib/heating-status";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults, syncEbecoDevice } from "@/lib/data.functions";
+import { getThermostat, updateThermostat, listSchedules, listDevices, listZoneDefaults, syncEbecoDevice, setThermostatZoneOverride } from "@/lib/data.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -348,6 +348,12 @@ function ThermostatPage() {
               </div>
             </div>
 
+            <ZoneOverrideCard
+              t={t}
+              zoneDef={(() => { const z = (zonesData.defaults as any[]).find((z) => z.zone === t.zone); return z ? Number(z.default_setpoint) : null; })()}
+              zoneMax={(() => { const z = (zonesData.defaults as any[]).find((z) => z.zone === t.zone); return z ? Number(z.guest_max_setpoint) : null; })()}
+            />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="enabled">Päällä</Label>
               <Switch
@@ -541,3 +547,97 @@ function ThermostatPage() {
   );
 }
 
+
+function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | null; zoneMax: number | null }) {
+  const qc = useQueryClient();
+  const run = useServerFn(setThermostatZoneOverride);
+  const [on, setOn] = useState<boolean>(!!t.zone_override);
+  const [def, setDef] = useState<number>(Number(t.override_default_setpoint ?? zoneDef ?? t.current_setpoint));
+  const [max, setMax] = useState<number>(Number(t.guest_max_setpoint));
+  const [note, setNote] = useState<string>(t.override_note ?? "");
+  const [until, setUntil] = useState<string>(t.override_until ? String(t.override_until).slice(0, 10) : "");
+  useEffect(() => {
+    setOn(!!t.zone_override);
+    setDef(Number(t.override_default_setpoint ?? zoneDef ?? t.current_setpoint));
+    setMax(Number(t.guest_max_setpoint));
+    setNote(t.override_note ?? "");
+    setUntil(t.override_until ? String(t.override_until).slice(0, 10) : "");
+  }, [t.zone_override, t.override_default_setpoint, t.guest_max_setpoint, t.override_note, t.override_until, zoneDef]);
+  const deviceMax = Number(t.max_setpoint ?? 35);
+  const m = useMutation({
+    mutationFn: run,
+    onSuccess: (r: any, v: any) => {
+      ["thermostat", "zone-defaults", "heating-duty", "apartments", "devices"].forEach((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      );
+      const base = v.data.enabled ? "Poikkeus tallennettu" : "Palautettu vyöhykkeen arvoihin";
+      if (r.failed) toast.warning(`${base}, mutta Ebecoon lähetys epäonnistui`, { description: r.error ?? undefined });
+      else toast.success(`${base} · lähetetty Ebecoon`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Tallennus epäonnistui"),
+  });
+  if (t.zone === "none") return null;
+  const save = () =>
+    m.mutate({
+      data: {
+        id: t.id,
+        enabled: true,
+        default_setpoint: Math.min(def, max),
+        guest_max_setpoint: max,
+        note: note.trim() || null,
+        until: until ? new Date(until + "T23:59:00").toISOString() : null,
+      },
+    });
+  return (
+    <div className="space-y-3 rounded-md border border-warning/40 p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <Label htmlFor="zov">Poikkeava asetus vyöhykkeestä</Label>
+          <p className="text-xs text-muted-foreground">
+            Vyöhykkeen arvot: oletus {zoneDef ?? "—"} °C, yläraja {zoneMax ?? "—"} °C
+          </p>
+        </div>
+        <Switch
+          id="zov"
+          checked={on}
+          disabled={m.isPending}
+          onCheckedChange={(v) => {
+            setOn(v);
+            if (!v && t.zone_override) m.mutate({ data: { id: t.id, enabled: false } });
+          }}
+        />
+      </div>
+      {on && (
+        <>
+          <div>
+            <div className="mb-1 flex justify-between text-sm"><span>Oma oletuslämpötila</span><span className="font-semibold">{def.toFixed(1)} °C</span></div>
+            <Slider min={5} max={deviceMax} step={0.5} value={[def]} onValueChange={(v) => setDef(v[0])} />
+          </div>
+          <div>
+            <div className="mb-1 flex justify-between text-sm"><span>Oma asiakkaan yläraja</span><span className="font-semibold text-warning">{max.toFixed(1)} °C</span></div>
+            <Slider min={15} max={deviceMax} step={0.5} value={[max]} onValueChange={(v) => setMax(v[0])} />
+            {def > max && <p className="text-xs text-warning">Oletus leikataan ylärajaan.</p>}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Syy (valinnainen)</Label>
+              <Input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="esim. kylmä eteinen" />
+            </div>
+            <div>
+              <Label className="text-xs">Päättyy (valinnainen)</Label>
+              <Input type="date" value={until} onChange={(e) => setUntil(e.target.value)} />
+            </div>
+          </div>
+          <Button className="w-full" onClick={save} disabled={m.isPending}>
+            {m.isPending ? "Tallennetaan…" : "Tallenna poikkeus ja lähetä termostaattiin"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Vyöhykkeen tallennus ei muuta tätä termostaattia, ellei sitä erikseen vahvisteta. Poikkeus näkyy
+            etusivulla, vyöhykeasetuksissa ja lämmitysaste-sivulla. Päättymispäivän jälkeen termostaatti palaa
+            automaattisesti vyöhykkeen arvoihin.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}

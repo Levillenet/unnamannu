@@ -13,13 +13,28 @@ import { Thermometer, AlertTriangle, WifiOff, Home, ShieldAlert, ArrowRight, Ref
 
 function HeatingAlert() {
   const q = useQuery({ queryKey: ["heating-duty"], queryFn: () => getHeatingDuty() });
-  const n = (q.data?.rows ?? []).filter((r) => heatStatus(r) === "problem").length;
-  if (!n) return null;
+  const rows = q.data?.rows ?? [];
+  const n = rows.filter((r) => heatStatus(r) === "problem").length;
+  const ov = rows.filter((r: any) => r.override);
+  if (!n && !ov.length) return null;
   return (
-    <Link to="/heating" className="mb-4 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-      <AlertTriangle className="h-4 w-4" /> {n} termostaattia ei saavuta tavoitelämpötilaa — katso lämmitysaste
-      <ArrowRight className="ml-auto h-4 w-4" />
-    </Link>
+    <>
+      {n > 0 && (
+        <Link to="/heating" className="mb-4 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertTriangle className="h-4 w-4" /> {n} termostaattia ei saavuta tavoitelämpötilaa — katso lämmitysaste
+          <ArrowRight className="ml-auto h-4 w-4" />
+        </Link>
+      )}
+      {ov.length > 0 && (
+        <Link to="/heating" className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            {ov.length} termostaatilla vyöhykkeestä poikkeava asetus: {ov.map((r: any) => r.name).join(", ")}
+          </span>
+          <ArrowRight className="ml-auto h-4 w-4 shrink-0" />
+        </Link>
+      )}
+    </>
   );
 }
 

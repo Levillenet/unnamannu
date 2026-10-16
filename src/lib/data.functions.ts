@@ -482,17 +482,25 @@ export const listZoneDefaults = createServerFn({ method: "GET" })
     const [{ data: building }, { data: defaults }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("zone_defaults").select("*").order("label"),
-      supabase.from("thermostats").select("id,zone,locked,enabled"),
+      supabase.from("thermostats").select("id,name,zone,locked,enabled,zone_override,override_default_setpoint,guest_max_setpoint,override_note,override_until"),
     ]);
     const counts: Record<string, number> = {};
     const lockedCounts: Record<string, number> = {};
     const enabledCounts: Record<string, number> = {};
+    const overrides: Record<string, { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[]> = {};
     for (const t of thermostats ?? []) {
       counts[t.zone] = (counts[t.zone] ?? 0) + 1;
       if (t.locked) lockedCounts[t.zone] = (lockedCounts[t.zone] ?? 0) + 1;
       if (t.enabled) enabledCounts[t.zone] = (enabledCounts[t.zone] ?? 0) + 1;
+      if (t.zone_override) {
+        (overrides[t.zone] ??= []).push({
+          id: t.id, name: t.name,
+          def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
+          max: Number(t.guest_max_setpoint), note: t.override_note, until: t.override_until,
+        });
+      }
     }
-    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts };
+    return { building, defaults: defaults ?? [], counts, lockedCounts, enabledCounts, overrides };
   });
 
 export const saveZoneDefault = createServerFn({ method: "POST" })
@@ -508,11 +516,12 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       max_hold_minutes: z.number().int().min(0).max(1440),
       applyToAll: z.boolean().optional(),
       lockAll: z.boolean().optional(),
+      includeOverrides: z.boolean().optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId, claims } = context;
-    const { applyToAll, lockAll, ...row } = data;
+    const { applyToAll, lockAll, includeOverrides, ...row } = data;
     const { data: existing } = await supabase
       .from("zone_defaults").select("id")
       .eq("building_id", row.building_id).eq("zone", row.zone).maybeSingle();
@@ -526,19 +535,30 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     let pushFailed = 0;
     let pushErrors: string[] = [];
     let failedNames: string[] = [];
+    let skippedOverrides: string[] = [];
     if (applyToAll) {
       // Vie oletuslämpötila + asiakasmaksimi vyöhykkeen termostaatteihin
       // ja lähetä ne heti Ebecoon.
       const setpoint = Math.min(row.default_setpoint, row.guest_max_setpoint);
-      const { data: zoneRows, error: e2 } = await supabase.from("thermostats")
+      if (!includeOverrides) {
+        const { data: ov } = await supabase.from("thermostats").select("name")
+          .eq("zone", row.zone).eq("zone_override", true);
+        skippedOverrides = (ov ?? []).map((r: any) => r.name as string);
+      }
+      let q = supabase.from("thermostats")
         .update({
           guest_max_setpoint: row.guest_max_setpoint,
           current_setpoint: setpoint,
           override_started_at: null,
           max_hold_started_at: null,
+          zone_override: false,
+          override_default_setpoint: null,
+          override_note: null,
+          override_until: null,
         })
-        .eq("zone", row.zone)
-        .select("id");
+        .eq("zone", row.zone);
+      if (!includeOverrides) q = q.eq("zone_override", false);
+      const { data: zoneRows, error: e2 } = await q.select("id");
       if (e2) throw new Error(e2.message);
       const ids = (zoneRows ?? []).map((r: any) => r.id as string);
       applied = ids.length;
@@ -575,9 +595,9 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
       action: existing ? "zone.update" : "zone.create",
       entity_type: "zone", entity_id: row.zone,
-      details: { ...row, applyToAll, lockAll, lockPushed, lockFailed, applied, pushed, pushFailed, pushErrors },
+      details: { ...row, applyToAll, lockAll, includeOverrides, skippedOverrides, lockPushed, lockFailed, applied, pushed, pushFailed, pushErrors },
     });
-    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed, failedNames, pushErrors };
+    return { ok: true, lockPushed, lockFailed, applied, pushed, pushFailed, failedNames, pushErrors, skippedOverrides };
   });
 
 
@@ -1090,7 +1110,7 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: ts, error } = await supabase
       .from("thermostats")
-      .select("id,name,zone,enabled,status,current_setpoint,ebeco_settings,apartment_id,apartments(number)");
+      .select("id,name,zone,enabled,status,current_setpoint,guest_max_setpoint,zone_override,override_default_setpoint,override_note,override_until,ebeco_settings,apartment_id,apartments(number)");
     if (error) throw new Error(error.message);
     const sinceMs = Math.max(Date.now() - 24 * 3600_000, DATA_VALID_FROM_MS);
     const since = new Date(sinceMs).toISOString();
@@ -1144,7 +1164,82 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
         duty4h: a && a.n4 > 0 ? Math.round((a.h4 / a.n4) * 100) : null,
         duty24h: a && a.n24 > 0 ? Math.round((a.h24 / a.n24) * 100) : null,
         samples24h: a?.n24 ?? 0,
+        override: t.zone_override
+          ? {
+              def: t.override_default_setpoint != null ? Number(t.override_default_setpoint) : null,
+              max: Number(t.guest_max_setpoint),
+              note: (t.override_note as string | null) ?? null,
+              until: (t.override_until as string | null) ?? null,
+            }
+          : null,
       };
     });
     return { rows, expectedSamples, dataValidFrom: DATA_VALID_FROM };
+  });
+
+// ---------- VYÖHYKEPOIKKEUS ----------
+export const setThermostatZoneOverride = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      enabled: z.boolean(),
+      default_setpoint: z.number().min(5).max(35).optional(),
+      guest_max_setpoint: z.number().min(5).max(35).optional(),
+      note: z.string().max(200).nullable().optional(),
+      until: z.string().datetime().nullable().optional(),
+    }).parse,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId, claims } = context;
+    const { data: t, error: e1 } = await supabase
+      .from("thermostats").select("id,name,zone").eq("id", data.id).maybeSingle();
+    if (e1 || !t) throw new Error("Termostaattia ei löydy");
+    let def: number;
+    let max: number;
+    let patch: Record<string, unknown>;
+    if (data.enabled) {
+      if (data.default_setpoint == null || data.guest_max_setpoint == null)
+        throw new Error("Oletus ja yläraja vaaditaan");
+      max = data.guest_max_setpoint;
+      def = Math.min(data.default_setpoint, max);
+      patch = {
+        zone_override: true,
+        override_default_setpoint: def,
+        guest_max_setpoint: max,
+        current_setpoint: def,
+        override_note: data.note ?? null,
+        override_until: data.until ?? null,
+        override_set_at: new Date().toISOString(),
+        override_set_by: userId,
+        override_started_at: null,
+        max_hold_started_at: null,
+      };
+    } else {
+      const { data: zd } = await supabase.from("zone_defaults")
+        .select("default_setpoint,guest_max_setpoint").eq("zone", t.zone).limit(1).maybeSingle();
+      max = Number(zd?.guest_max_setpoint ?? 23);
+      def = Math.min(Number(zd?.default_setpoint ?? 21), max);
+      patch = {
+        zone_override: false,
+        override_default_setpoint: null,
+        override_note: null,
+        override_until: null,
+        guest_max_setpoint: max,
+        current_setpoint: def,
+        override_started_at: null,
+        max_hold_started_at: null,
+      };
+    }
+    const { error } = await supabase.from("thermostats").update(patch as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    const res = await pushPatchToTargets(supabase, [data.id], {
+      temperatureSet: def,
+      maxSetpoint: max,
+    } as EbecoPatch);
+    await writeAudit(supabase, userId, (claims as { email?: string }).email ?? null, {
+      action: data.enabled ? "thermostat.zone_override_set" : "thermostat.zone_override_clear",
+      entity_type: "thermostat", entity_id: data.id, details: { ...patch, pushed: res.succeeded },
+    });
+    return { ok: true, pushed: res.succeeded, failed: res.failed, error: res.errors[0] ?? null };
   });
