@@ -555,14 +555,12 @@ function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | n
   const [def, setDef] = useState<number>(Number(t.override_default_setpoint ?? zoneDef ?? t.current_setpoint));
   const [max, setMax] = useState<number>(Number(t.guest_max_setpoint));
   const [note, setNote] = useState<string>(t.override_note ?? "");
-  const [until, setUntil] = useState<string>(t.override_until ? String(t.override_until).slice(0, 10) : "");
   useEffect(() => {
     setOn(!!t.zone_override);
     setDef(Number(t.override_default_setpoint ?? zoneDef ?? t.current_setpoint));
     setMax(Number(t.guest_max_setpoint));
     setNote(t.override_note ?? "");
-    setUntil(t.override_until ? String(t.override_until).slice(0, 10) : "");
-  }, [t.zone_override, t.override_default_setpoint, t.guest_max_setpoint, t.override_note, t.override_until, zoneDef]);
+  }, [t.zone_override, t.override_default_setpoint, t.guest_max_setpoint, t.override_note, zoneDef]);
   const deviceMax = Number(t.max_setpoint ?? 35);
   const m = useMutation({
     mutationFn: run,
@@ -585,7 +583,6 @@ function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | n
         default_setpoint: Math.min(def, max),
         guest_max_setpoint: max,
         note: note.trim() || null,
-        until: until ? new Date(until + "T23:59:00").toISOString() : null,
       },
     });
   return (
@@ -618,23 +615,16 @@ function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | n
             <Slider min={15} max={deviceMax} step={0.5} value={[max]} onValueChange={(v) => setMax(v[0])} />
             {def > max && <p className="text-xs text-warning">Oletus leikataan ylärajaan.</p>}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">Syy (valinnainen)</Label>
-              <Input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="esim. kylmä eteinen" />
-            </div>
-            <div>
-              <Label className="text-xs">Päättyy (valinnainen)</Label>
-              <Input type="date" value={until} onChange={(e) => setUntil(e.target.value)} />
-            </div>
+          <div>
+            <Label className="text-xs">Syy (valinnainen)</Label>
+            <Input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="esim. kylmä eteinen" />
           </div>
           <Button className="w-full" onClick={save} disabled={m.isPending}>
             {m.isPending ? "Tallennetaan…" : "Tallenna poikkeus ja lähetä termostaattiin"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Vyöhykkeen tallennus ei muuta tätä termostaattia, ellei sitä erikseen vahvisteta. Poikkeus näkyy
-            etusivulla, vyöhykeasetuksissa ja lämmitysaste-sivulla. Päättymispäivän jälkeen termostaatti palaa
-            automaattisesti vyöhykkeen arvoihin.
+            Vyöhykkeen tallennus ei muuta tätä termostaattia, ellei sitä erikseen vahvisteta. Poikkeus pysyy
+            voimassa, kunnes poistat sen itse, ja se näkyy etusivulla, vyöhykeasetuksissa ja lämmitysaste-sivulla.
           </p>
         </>
       )}

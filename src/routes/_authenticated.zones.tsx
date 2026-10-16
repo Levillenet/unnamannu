@@ -84,7 +84,7 @@ function ZoneCard({
   powering: boolean;
   onDelete: () => void;
   saving: boolean;
-  overrides: { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[];
+  overrides: { id: string; name: string; def: number | null; max: number; note: string | null }[];
 }) {
   const allLocked = count > 0 && lockedCount === count;
   const [guest, setGuest] = useState(Number(row.guest_max_setpoint));
@@ -186,7 +186,7 @@ function ZoneCard({
                 <Link to="/thermostats/$id" params={{ id: o.id }} className="font-medium hover:underline">{o.name}</Link>
                 {" "}— oletus {o.def ?? "—"} °C, yläraja {o.max} °C
                 {o.note ? ` · ${o.note}` : ""}
-                {o.until ? ` · päättyy ${new Date(o.until).toLocaleDateString("fi-FI")}` : ""}
+                {" · voimassa kunnes poistetaan"}
               </div>
             ))}
           </div>
