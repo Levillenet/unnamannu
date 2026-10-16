@@ -508,11 +508,12 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
       max_hold_minutes: z.number().int().min(0).max(1440),
       applyToAll: z.boolean().optional(),
       lockAll: z.boolean().optional(),
+      includeOverrides: z.boolean().optional(),
     }).parse,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId, claims } = context;
-    const { applyToAll, lockAll, ...row } = data;
+    const { applyToAll, lockAll, includeOverrides, ...row } = data;
     const { data: existing } = await supabase
       .from("zone_defaults").select("id")
       .eq("building_id", row.building_id).eq("zone", row.zone).maybeSingle();
@@ -526,19 +527,30 @@ export const saveZoneDefault = createServerFn({ method: "POST" })
     let pushFailed = 0;
     let pushErrors: string[] = [];
     let failedNames: string[] = [];
+    let skippedOverrides: string[] = [];
     if (applyToAll) {
       // Vie oletuslämpötila + asiakasmaksimi vyöhykkeen termostaatteihin
       // ja lähetä ne heti Ebecoon.
       const setpoint = Math.min(row.default_setpoint, row.guest_max_setpoint);
-      const { data: zoneRows, error: e2 } = await supabase.from("thermostats")
+      if (!includeOverrides) {
+        const { data: ov } = await supabase.from("thermostats").select("name")
+          .eq("zone", row.zone).eq("zone_override", true);
+        skippedOverrides = (ov ?? []).map((r: any) => r.name as string);
+      }
+      let q = supabase.from("thermostats")
         .update({
           guest_max_setpoint: row.guest_max_setpoint,
           current_setpoint: setpoint,
           override_started_at: null,
           max_hold_started_at: null,
+          zone_override: false,
+          override_default_setpoint: null,
+          override_note: null,
+          override_until: null,
         })
-        .eq("zone", row.zone)
-        .select("id");
+        .eq("zone", row.zone);
+      if (!includeOverrides) q = q.eq("zone_override", false);
+      const { data: zoneRows, error: e2 } = await q.select("id");
       if (e2) throw new Error(e2.message);
       const ids = (zoneRows ?? []).map((r: any) => r.id as string);
       applied = ids.length;
