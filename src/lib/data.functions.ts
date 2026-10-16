@@ -1231,7 +1231,7 @@ export const setThermostatZoneOverride = createServerFn({ method: "POST" })
         max_hold_started_at: null,
       };
     }
-    const { error } = await supabase.from("thermostats").update(patch).eq("id", data.id);
+    const { error } = await supabase.from("thermostats").update(patch as any).eq("id", data.id);
     if (error) throw new Error(error.message);
     const res = await pushPatchToTargets(supabase, [data.id], {
       temperatureSet: def,
