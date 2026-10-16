@@ -293,7 +293,12 @@ export type Database = {
           min_setpoint: number
           name: string
           open_window_detection: boolean | null
+          override_default_setpoint: number | null
+          override_note: string | null
+          override_set_at: string | null
+          override_set_by: string | null
           override_started_at: string | null
+          override_until: string | null
           room: string | null
           selected_program: string | null
           sensor_application: string | null
@@ -303,6 +308,7 @@ export type Database = {
           temperature_calibration_room: number | null
           updated_at: string
           zone: string
+          zone_override: boolean
         }
         Insert: {
           adaptive_start?: boolean | null
@@ -331,7 +337,12 @@ export type Database = {
           min_setpoint?: number
           name: string
           open_window_detection?: boolean | null
+          override_default_setpoint?: number | null
+          override_note?: string | null
+          override_set_at?: string | null
+          override_set_by?: string | null
           override_started_at?: string | null
+          override_until?: string | null
           room?: string | null
           selected_program?: string | null
           sensor_application?: string | null
@@ -341,6 +352,7 @@ export type Database = {
           temperature_calibration_room?: number | null
           updated_at?: string
           zone?: string
+          zone_override?: boolean
         }
         Update: {
           adaptive_start?: boolean | null
@@ -369,7 +381,12 @@ export type Database = {
           min_setpoint?: number
           name?: string
           open_window_detection?: boolean | null
+          override_default_setpoint?: number | null
+          override_note?: string | null
+          override_set_at?: string | null
+          override_set_by?: string | null
           override_started_at?: string | null
+          override_until?: string | null
           room?: string | null
           selected_program?: string | null
           sensor_application?: string | null
@@ -379,6 +396,7 @@ export type Database = {
           temperature_calibration_room?: number | null
           updated_at?: string
           zone?: string
+          zone_override?: boolean
         }
         Relationships: [
           {
