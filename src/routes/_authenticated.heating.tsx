@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getHeatingDuty, listZoneDefaults } from "@/lib/data.functions";
-import { heatStatus, STATUS_ORDER, type HeatStatus } from "@/lib/heating-status";
+import { heatStatus, STATUS_ORDER, DATA_VALID_FROM_MS, type HeatStatus } from "@/lib/heating-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,6 +69,11 @@ function HeatingPage() {
           <p className="text-sm text-muted-foreground">
             Kuinka suuren osan ajasta termostaatti lämmittää, ja saavuttaako se asetetun lämpötilan.
           </p>
+          {Date.now() - DATA_VALID_FROM_MS < 24 * 3600_000 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Aineisto kertyy 15.10. klo 21 alkaen — prosentit tarkentuvat, kun dataa on kertynyt täysi vuorokausi.
+            </p>
+          )}
         </div>
         <Select value={zone} onValueChange={setZone}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
@@ -116,8 +121,8 @@ function HeatingPage() {
                   <td className="py-2 pr-3"><DutyBar v={r.duty4h} /></td>
                   <td className="py-2 pr-3">
                     <DutyBar v={r.duty24h} />
-                    {typeof r.samples24h === "number" && r.samples24h < 48 && (
-                      <div className="text-xs text-warning">vain {r.samples24h} mittausta / 24 h</div>
+                    {typeof r.samples24h === "number" && r.samples24h < data.expectedSamples / 2 && (
+                      <div className="text-xs text-warning">vain {r.samples24h} / {data.expectedSamples} mittausta</div>
                     )}
                   </td>
                   <td className="py-2 pr-3 text-xs tabular-nums">
