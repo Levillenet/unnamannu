@@ -348,6 +348,12 @@ function ThermostatPage() {
               </div>
             </div>
 
+            <ZoneOverrideCard
+              t={t}
+              zoneDef={(() => { const z = (zonesData.defaults as any[]).find((z) => z.zone === t.zone); return z ? Number(z.default_setpoint) : null; })()}
+              zoneMax={(() => { const z = (zonesData.defaults as any[]).find((z) => z.zone === t.zone); return z ? Number(z.guest_max_setpoint) : null; })()}
+            />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="enabled">Päällä</Label>
               <Switch
