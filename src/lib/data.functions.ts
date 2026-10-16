@@ -1091,8 +1091,10 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
       .from("thermostats")
       .select("id,name,zone,enabled,status,current_setpoint,ebeco_settings,apartment_id,apartments(number)");
     if (error) throw new Error(error.message);
-    const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+    const sinceMs = Math.max(Date.now() - 24 * 3600_000, DATA_VALID_FROM_MS);
+    const since = new Date(sinceMs).toISOString();
     const since4 = Date.now() - 4 * 3600_000;
+    const expectedSamples = Math.max(1, Math.round((Date.now() - sinceMs) / (15 * 60_000)));
     const all: any[] = [];
     for (let from = 0; ; from += 1000) {
       const { data, error: e } = await supabase
@@ -1143,5 +1145,5 @@ export const getHeatingDuty = createServerFn({ method: "GET" })
         samples24h: a?.n24 ?? 0,
       };
     });
-    return { rows };
+    return { rows, expectedSamples, dataValidFrom: DATA_VALID_FROM };
   });
