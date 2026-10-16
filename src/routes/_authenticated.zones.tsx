@@ -72,6 +72,7 @@ function ZoneCard({
   powering,
   onDelete,
   saving,
+  overrides,
 }: {
   row: ZoneRow;
   count: number;
@@ -83,6 +84,7 @@ function ZoneCard({
   powering: boolean;
   onDelete: () => void;
   saving: boolean;
+  overrides: { id: string; name: string; def: number | null; max: number; note: string | null; until: string | null }[];
 }) {
   const allLocked = count > 0 && lockedCount === count;
   const [guest, setGuest] = useState(Number(row.guest_max_setpoint));
@@ -176,6 +178,19 @@ function ZoneCard({
 
         </div>
 
+        {overrides.length > 0 && (
+          <div className="space-y-1 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            <div className="font-medium text-warning">Poikkeus käytössä ({overrides.length}):</div>
+            {overrides.map((o) => (
+              <div key={o.id}>
+                <Link to="/thermostats/$id" params={{ id: o.id }} className="font-medium hover:underline">{o.name}</Link>
+                {" "}— oletus {o.def ?? "—"} °C, yläraja {o.max} °C
+                {o.note ? ` · ${o.note}` : ""}
+                {o.until ? ` · päättyy ${new Date(o.until).toLocaleDateString("fi-FI")}` : ""}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="space-y-2 border-t pt-4">
           {dirty && (
             <p className="text-xs text-warning">Sinulla on tallentamattomia muutoksia.</p>
@@ -426,6 +441,8 @@ function ZonesPage() {
             duration: 15000,
           });
         else toast.success(msg);
+        if (r?.skippedOverrides?.length)
+          toast.info(`Poikkeukset jätettiin ennalleen: ${r.skippedOverrides.join(", ")}`);
       }
       else if (typeof v.lockAll === "boolean") toast.success(v.lockAll ? "Kaikki lukittu" : "Kaikki vapautettu");
       else toast.success("Tallennettu");
@@ -507,8 +524,14 @@ function ZonesPage() {
               powering={powerM.isPending}
               onPower={(on) => powerM.mutate({ data: { zone: z.zone, on } })}
               saving={saveM.isPending}
-              onSaveAndApply={(a) =>
-
+              overrides={(data as any).overrides?.[z.zone] ?? []}
+              onSaveAndApply={(a) => {
+                const ov = ((data as any).overrides?.[z.zone] ?? []) as { name: string }[];
+                const includeOverrides =
+                  ov.length > 0 &&
+                  confirm(
+                    `Seuraavilla termostaateilla on vyöhykkeestä poikkeava asetus:\n${ov.map((o) => o.name).join(", ")}\n\nKoskeeko muutos myös näitä? OK = kyllä (poikkeus poistetaan), Peruuta = jätä poikkeukset ennalleen.`,
+                  );
                 saveM.mutate({
                   data: {
                     ...baseFor(z),
@@ -517,9 +540,10 @@ function ZonesPage() {
                     default_setpoint: a.def,
                     max_hold_minutes: a.hold,
                     applyToAll: true,
+                    includeOverrides,
                   },
-                })
-              }
+                });
+              }}
               onLockToggle={(locked) =>
                 saveM.mutate({ data: { ...baseFor(z), lockAll: locked } })
               }
