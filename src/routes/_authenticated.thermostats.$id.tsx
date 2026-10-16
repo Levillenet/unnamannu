@@ -1,4 +1,5 @@
 import { readFloor, readRoom, sensorMode } from "@/lib/sensor";
+import { DATA_VALID_FROM_MS } from "@/lib/heating-status";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -146,12 +147,13 @@ function ThermostatPage() {
     heatingSegments.push({ x1: segStart, x2: chartData[chartData.length - 1].t + 15 * 60_000 });
   }
   const heatingStats24h = (() => {
-    const cutoff = Date.now() - 24 * 3600_000;
+    const cutoff = Math.max(Date.now() - 24 * 3600_000, DATA_VALID_FROM_MS);
     const samples = data.readings.filter(
       (r: any) => !r.event && (r as any).heating != null && new Date(r.ts as string).getTime() >= cutoff,
     );
     const onCount = samples.filter((r: any) => (r as any).heating === true).length;
-    return { minutes: onCount * 15, samples: samples.length, expected: 96 };
+    const expected = Math.max(1, Math.round((Date.now() - cutoff) / (15 * 60_000)));
+    return { minutes: onCount * 15, samples: samples.length, expected };
   })();
   const heatingNow = [...data.readings].reverse().find((r: any) => !r.event && (r as any).heating != null) as any;
   const isHeatingNow = heatingNow?.heating === true;

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
+import { DATA_VALID_FROM, DATA_VALID_FROM_MS } from "./heating-status";
 import {
   fetchDevices,
   fetchDevicesDetailed,
