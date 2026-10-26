@@ -63,7 +63,8 @@ async function requireAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Vain admin voi tehdä tämän muutoksen");
 }
 
-const MAX_EXCEEDANCE_EVENTS = ["guest_max_exceeded", "guest_max_enforced", "max_hold_expired"];
+// Lasketaan vain todelliset palautustoimet (ei synkronoinnin havaintorivejä, jotka voivat tuplaantua)
+const MAX_EXCEEDANCE_EVENTS = ["guest_max_enforced", "max_hold_expired"];
 
 export const getBuildingOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -87,7 +88,13 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       tempReadings.length > 0
         ? tempReadings.reduce((s, r) => s + Number(r.room_temp), 0) / tempReadings.length
         : null;
-    const enforcedCount = (readings24h ?? []).filter((r) => MAX_EXCEEDANCE_EVENTS.includes(r.event ?? "")).length;
+    // Erillinen laskentakysely: tavallinen haku katkeaa 1000 riviin
+    const { count: enforcedCountRaw } = await supabase
+      .from("thermostat_readings")
+      .select("id", { count: "exact", head: true })
+      .gte("ts", since)
+      .in("event", MAX_EXCEEDANCE_EVENTS);
+    const enforcedCount = enforcedCountRaw ?? 0;
 
     const ts = thermostats ?? [];
     const avgSp = ts.length
