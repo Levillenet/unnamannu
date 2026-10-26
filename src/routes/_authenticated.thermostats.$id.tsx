@@ -561,7 +561,9 @@ function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | n
     setMax(Number(t.guest_max_setpoint));
     setNote(t.override_note ?? "");
   }, [t.zone_override, t.override_default_setpoint, t.guest_max_setpoint, t.override_note, zoneDef]);
-  const deviceMax = Number(t.max_setpoint ?? 35);
+  // Laitteen todellinen maksimi: ensisijaisesti Ebeco-synkronoinnin tallentama
+  // arvo, koska max_setpoint-kenttä on aiemmin saattanut korvautua ylärajalla.
+  const deviceMax = Number(t.ebeco_settings?.maxSetpoint ?? t.max_setpoint ?? 35);
   const m = useMutation({
     mutationFn: run,
     onSuccess: (r: any, v: any) => {
