@@ -349,9 +349,8 @@ export const updateThermostat = createServerFn({ method: "POST" })
             ? { maxSetpoint: patch.guest_max_setpoint }
             : {}),
         });
-        if (patch.guest_max_setpoint != null) {
-          (patch as Record<string, unknown>).max_setpoint = patch.guest_max_setpoint;
-        }
+        // Huom: max_setpoint-kenttää EI korvata ylärajalla — se säilyttää
+        // laitteen todellisen maksimin, jota poikkeusasetusten säädimet käyttävät.
       }
     }
 
