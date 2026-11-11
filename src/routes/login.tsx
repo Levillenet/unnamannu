@@ -20,7 +20,7 @@ function LoginPage() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate({ to: "/dashboard", replace: true });
+      if (session && _e === "SIGNED_IN") navigate({ to: "/dashboard", replace: true });
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -30,10 +30,11 @@ function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      // Pidä "Kirjaudutaan…" päällä kunnes etusivu aukeaa
+      navigate({ to: "/dashboard", replace: true });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Kirjautuminen epäonnistui";
       toast.error(msg);
-    } finally {
       setLoading(false);
     }
   };
@@ -58,7 +59,7 @@ function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Salasana</Label>
-              <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && signIn()} />
+              <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !loading && signIn()} />
             </div>
             <Button className="w-full" onClick={signIn} disabled={loading || !email || !password}>
               {loading ? "Kirjaudutaan…" : "Kirjaudu"}

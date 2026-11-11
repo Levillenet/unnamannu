@@ -98,6 +98,12 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     context.queryClient.ensureQueryData(overviewQO);
     context.queryClient.ensureQueryData(apartmentsQO);
   },
+  pendingMs: 0,
+  pendingComponent: () => (
+    <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
+      <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Ladataan yleisnäkymää…
+    </div>
+  ),
   component: DashboardPage,
 });
 

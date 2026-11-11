@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS thermostat_readings_ts_idx ON public.thermostat_readings (ts DESC);
+CREATE INDEX IF NOT EXISTS thermostat_readings_thermostat_ts_idx ON public.thermostat_readings (thermostat_id, ts DESC);
