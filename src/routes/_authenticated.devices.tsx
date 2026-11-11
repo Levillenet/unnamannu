@@ -1,3 +1,4 @@
+import { sensorMode } from "@/lib/sensor";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -257,6 +258,11 @@ function DevicesPage() {
                         <Badge variant="outline" className="text-xs">
                           {zoneLabelOf(t.zone)}
                         </Badge>
+                        {(t as any).sensor_application && (
+                          <Badge variant="secondary" className="text-xs">
+                            {sensorMode((t as any).sensor_application).label || (t as any).sensor_application}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Link to="/thermostats/$id" params={{ id: t.id }}>
