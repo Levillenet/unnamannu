@@ -38,6 +38,28 @@ function HeatingAlert() {
   );
 }
 
+function OfflineAlert({ list }: { list: Array<{ id: string; name: string; since: string | null }> }) {
+  if (!list.length) return null;
+  const times = list.map((t) => t.since).filter(Boolean) as string[];
+  const earliest = times.length ? times.reduce((a, b) => (a < b ? a : b)) : null;
+  // Katkenneet samassa 15 min synkronoinnissa → todennäköinen verkkokatko
+  const sameWindow =
+    times.length >= 5 &&
+    new Set(times.map((x) => Math.floor(new Date(x).getTime() / 900_000))).size === 1;
+  return (
+    <Link to="/devices" className="mb-4 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+      <WifiOff className="h-4 w-4 shrink-0" />
+      <span>
+        {list.length} termostaattia offline
+        {earliest &&
+          ` · katkesi ${new Date(earliest).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" })} jälkeen`}
+        {sameWindow && " · kaikki samaan aikaan, todennäköisesti verkko- tai tukiasemakatko"}
+      </span>
+      <ArrowRight className="ml-auto h-4 w-4 shrink-0" />
+    </Link>
+  );
+}
+
 function RefreshNowButton() {
   const run = useServerFn(syncAllNow);
   const qc = useQueryClient();
@@ -127,6 +149,7 @@ function DashboardPage() {
   return (
     <div className="p-8">
       <HeatingAlert />
+      <OfflineAlert list={(o as any).offlineList ?? []} />
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Yleisnäkymä</h1>
         <p className="text-sm text-muted-foreground">{o.building?.name ?? "Hotelli"}</p>
