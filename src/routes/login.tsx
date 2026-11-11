@@ -20,7 +20,7 @@ function LoginPage() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session && _e === "SIGNED_IN") navigate({ to: "/dashboard", replace: true });
+      if (session && (_e === "SIGNED_IN" || _e === "INITIAL_SESSION")) navigate({ to: "/dashboard", replace: true });
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -32,6 +32,10 @@ function LoginPage() {
       if (error) throw error;
       // Pidä "Kirjaudutaan…" päällä kunnes etusivu aukeaa
       navigate({ to: "/dashboard", replace: true });
+      setTimeout(() => {
+        setLoading(false);
+        toast.message("Kirjautuminen onnistui, mutta etusivun lataus kestää. Yritä uudelleen.");
+      }, 10_000);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Kirjautuminen epäonnistui";
       toast.error(msg);
