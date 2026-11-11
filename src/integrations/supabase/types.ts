@@ -265,6 +265,38 @@ export type Database = {
           },
         ]
       }
+      thermostat_sensor_events: {
+        Row: {
+          id: number
+          new_app: string | null
+          old_app: string | null
+          thermostat_id: string
+          ts: string
+        }
+        Insert: {
+          id?: number
+          new_app?: string | null
+          old_app?: string | null
+          thermostat_id: string
+          ts?: string
+        }
+        Update: {
+          id?: number
+          new_app?: string | null
+          old_app?: string | null
+          thermostat_id?: string
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thermostat_sensor_events_thermostat_id_fkey"
+            columns: ["thermostat_id"]
+            isOneToOne: false
+            referencedRelation: "thermostats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       thermostat_status_events: {
         Row: {
           error_message: string | null

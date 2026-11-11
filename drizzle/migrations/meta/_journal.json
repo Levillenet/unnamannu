@@ -43,6 +43,13 @@
       "when": 1794390332750,
       "tag": "0005_readings_ts_index",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794392205355,
+      "tag": "0006_thermostat_sensor_events",
+      "breakpoints": true
     }
   ]
 }
