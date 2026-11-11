@@ -783,7 +783,7 @@ async function pushPatchToTargets(
   for (const r of withEbeco as any[]) {
     const ebecoId = Number(r.ebeco_device_id);
     let lastErr: string | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       try {
         await updateDevice({ id: ebecoId, ...patch });
         lastErr = null;
@@ -791,7 +791,8 @@ async function pushPatchToTargets(
       } catch (e) {
         lastErr = String((e as Error)?.message ?? e);
         console.error(`[pushPatchToTargets] ${r.name} (${ebecoId}) yritys ${attempt + 1}: ${lastErr}`);
-        await sleep(800 * (attempt + 1));
+        const rateLimited = /\b429\b|nopeusrajoitus/i.test(lastErr);
+        await sleep(rateLimited ? 3500 * (attempt + 1) : 800 * (attempt + 1));
       }
     }
     if (lastErr) {
@@ -800,7 +801,7 @@ async function pushPatchToTargets(
     } else {
       succeeded.push({ localId: r.id, ebecoId });
     }
-    await sleep(300);
+    await sleep(600);
   }
   const results = { length: withEbeco.length };
 

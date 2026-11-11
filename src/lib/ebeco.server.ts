@@ -143,6 +143,12 @@ async function getToken(forceRefresh = false): Promise<string> {
   return authenticate();
 }
 
+function cleanErr(status: number, text: string): string {
+  if (status === 429) return "Ebecon nopeusrajoitus (429), yritetään uudelleen";
+  if (/<html|<!doctype/i.test(text)) return `Ebecon palvelin vastasi virheellä (HTTP ${status})`;
+  return text.slice(0, 200);
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -161,7 +167,7 @@ async function request<T>(
   }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Ebeco API virhe ${res.status} ${path}: ${text.slice(0, 200)}`);
+    throw new Error(`Ebeco API virhe ${res.status}: ${cleanErr(res.status, text)}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -264,7 +270,7 @@ export async function updateDevice(input: { id: number } & EbecoPatch): Promise<
     console.error(
       `[ebeco.updateDevice] PUT epäonnistui id=${input.id} status=${res.status} body=${text.slice(0, 400)}`,
     );
-    throw new Error(`Ebeco API virhe ${res.status} UpdateUserDevice: ${text.slice(0, 200)}`);
+    throw new Error(`Ebeco API virhe ${res.status}: ${cleanErr(res.status, text)}`);
   }
   console.log(
     `[ebeco.updateDevice] PUT ok id=${input.id} status=${res.status} response=${text.slice(0, 400)}`,
