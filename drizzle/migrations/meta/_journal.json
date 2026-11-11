@@ -29,6 +29,13 @@
       "when": 1794385359298,
       "tag": "0003_thermostat_status_events",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794385384449,
+      "tag": "0004_thermostat_status_change_trigger",
+      "breakpoints": true
     }
   ]
 }
