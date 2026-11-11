@@ -243,6 +243,8 @@ function ThermostatPage() {
         </div>
       </div>
 
+      <ConnectionHistory events={(data as any).statusEvents ?? []} />
+
       {lastEnforced && (
         <Card className="mb-4 border-warning/40 bg-warning/5">
           <CardContent className="flex items-center gap-3 pt-6">
@@ -631,5 +633,40 @@ function ZoneOverrideCard({ t, zoneDef, zoneMax }: { t: any; zoneDef: number | n
         </>
       )}
     </div>
+  );
+}
+
+function ConnectionHistory({ events }: { events: Array<{ ts: string; status: string; error_message: string | null }> }) {
+  if (!events.length) return null;
+  const fmt = (d: string) => new Date(d).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" });
+  // events: uusin ensin. Katkon kesto = seuraavan online-tapahtuman aika - offline-aika.
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="text-base">Yhteyshistoria (30 pv)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-y text-sm">
+          {events.map((e, i) => {
+            const back = e.status !== "online" ? events.slice(0, i).reverse().find((x) => x.status === "online") : null;
+            const durMin = back ? Math.round((new Date(back.ts).getTime() - new Date(e.ts).getTime()) / 60000) : null;
+            return (
+              <li key={e.ts + i} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span>
+                  {e.status === "online" ? "Palasi yhteyteen" : "Katkesi"} · {fmt(e.ts)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {e.status !== "online" &&
+                    (durMin != null
+                      ? `kesto ${durMin >= 60 ? `${Math.floor(durMin / 60)} h ${durMin % 60} min` : `${durMin} min`}`
+                      : "yhä offline")}
+                  {e.error_message ? ` · ${e.error_message}` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

@@ -73,7 +73,7 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
     const [{ data: building }, { data: apartments }, { data: thermostats }] = await Promise.all([
       supabase.from("buildings").select("*").limit(1).maybeSingle(),
       supabase.from("apartments").select("id"),
-      supabase.from("thermostats").select("id,status,current_setpoint,zone"),
+      supabase.from("thermostats").select("id,name,status,current_setpoint,zone,last_seen_at"),
     ]);
 
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
@@ -124,6 +124,9 @@ export const getBuildingOverview = createServerFn({ method: "GET" })
       avgRoomTemp: avgRoom,
       enforcedCount,
       avgSetpoint: avgSp,
+      offlineList: ts
+        .filter((t: any) => t.status === "offline")
+        .map((t: any) => ({ id: t.id, name: t.name, since: t.last_seen_at as string | null })),
       lastSyncAt,
       nextSyncAt: next.toISOString(),
     };
@@ -304,7 +307,14 @@ export const getThermostat = createServerFn({ method: "GET" })
       .gte("ts", since)
       .order("ts");
 
-    return { thermostat: t, readings: readings ?? [] };
+    const { data: statusEvents } = await (supabase.from("thermostat_status_events") as any)
+      .select("ts,status,error_message")
+      .eq("thermostat_id", data.id)
+      .gte("ts", new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString())
+      .order("ts", { ascending: false })
+      .limit(50);
+
+    return { thermostat: t, readings: readings ?? [], statusEvents: (statusEvents ?? []) as Array<{ ts: string; status: string; error_message: string | null }> };
   });
 
 export const updateThermostat = createServerFn({ method: "POST" })
