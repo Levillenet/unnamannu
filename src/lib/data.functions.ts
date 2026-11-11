@@ -314,7 +314,13 @@ export const getThermostat = createServerFn({ method: "GET" })
       .order("ts", { ascending: false })
       .limit(50);
 
-    return { thermostat: t, readings: readings ?? [], statusEvents: (statusEvents ?? []) as Array<{ ts: string; status: string; error_message: string | null }> };
+    const { data: sensorEvents } = await (supabase.from("thermostat_sensor_events") as any)
+      .select("ts,old_app,new_app")
+      .eq("thermostat_id", data.id)
+      .order("ts", { ascending: false })
+      .limit(50);
+
+    return { thermostat: t, readings: readings ?? [], sensorEvents: (sensorEvents ?? []) as Array<{ ts: string; old_app: string | null; new_app: string | null }>, statusEvents: (statusEvents ?? []) as Array<{ ts: string; status: string; error_message: string | null }> };
   });
 
 export const updateThermostat = createServerFn({ method: "POST" })

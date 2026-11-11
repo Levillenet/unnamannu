@@ -244,6 +244,7 @@ function ThermostatPage() {
       </div>
 
       <ConnectionHistory events={(data as any).statusEvents ?? []} />
+      <SensorHistory events={(data as any).sensorEvents ?? []} />
 
       {lastEnforced && (
         <Card className="mb-4 border-warning/40 bg-warning/5">
@@ -665,6 +666,28 @@ function ConnectionHistory({ events }: { events: Array<{ ts: string; status: str
               </li>
             );
           })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SensorHistory({ events }: { events: Array<{ ts: string; old_app: string | null; new_app: string | null }> }) {
+  if (!events.length) return null;
+  const fmt = (d: string) => new Date(d).toLocaleString("fi-FI", { dateStyle: "short", timeStyle: "short" });
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="text-base">Anturiasetuksen historia</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-y text-sm">
+          {events.map((e, i) => (
+            <li key={e.ts + i} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>{e.old_app ?? "—"} → <span className="font-medium">{e.new_app ?? "—"}</span></span>
+              <span className="text-xs text-muted-foreground">{fmt(e.ts)}</span>
+            </li>
+          ))}
         </ul>
       </CardContent>
     </Card>
